@@ -1,0 +1,276 @@
+# Free-text corpus: the CLUSTER pool. Email replies.
+#
+# Same banned vocabulary as cluster_notes.yaml. The cause is never named. Every
+# one of these is a plausible individual excuse; only the fact that nine of them
+# arrive from one parent group inside one week makes them an account-level
+# event. That gap is exactly what the batch-level insight has to close.
+
+kind: EMAIL_REPLY
+pool: CLUSTER
+
+templates:
+
+  - id: CE-01-routed-upward
+    strength: STRONG
+    signals: [CENTRALISATION_HINT, APPROVAL_PENDING]
+    archetypes: [SILENT, RELIABLE_BUT_SLOW, CHRONIC_LATE]
+    weight: 2
+    subject:
+      - "RE: Reminder - Invoice {invoice_no}"
+      - "RE: {invoice_no} - status"
+      - "Re: Outstanding {invoice_no}"
+    text: |-
+      Dear Sir,
+
+      {change}
+
+      {position}
+
+      {closing}
+
+      Regards,
+      {contact_name}
+      {contact_role}
+      {payer_name}, {city}
+    slots:
+      change:
+        - "With effect from this month, vendor payments for our unit are not released from here. The file moves to the group office and is decided there."
+        - "Our unit no longer holds the authority to release beyond a small local limit. Everything else goes up."
+        - "Payables for all our companies are being handled from one desk now. We only prepare the file."
+        - "The release function has been taken out of the units. We raise the voucher and it goes across."
+      position:
+        - "We have forwarded your bill and we have no visibility on it after that point."
+        - "We are not able to see the status once it leaves our system, and we are not told who is holding it."
+        - "Please understand that we are not in a position to give you a date. We do not have one ourselves."
+        - "We can confirm the bill is booked and passed. Beyond that we cannot say anything useful."
+      closing:
+        - "You may write to our head office if you wish; we can share the address."
+        - "We would ask you not to keep calling this desk, as the answer will not change."
+        - "As soon as we hear anything we will let you know."
+        - "We are in the same position with several of our other suppliers."
+
+  - id: CE-02-new-finance-head
+    strength: STRONG
+    signals: [AUTHORITY_CHANGE, SCOPE_PAUSE]
+    archetypes: [SILENT, CHRONIC_LATE, RELIABLE_BUT_SLOW]
+    weight: 2
+    subject:
+      - "RE: {invoice_no}"
+      - "RE: Payment follow-up {invoice_no}"
+      - "Re: Invoice {invoice_no} - please note"
+    text: |-
+      Hello,
+
+      {change}
+
+      {effect}
+
+      {closing}
+
+      {contact_name}
+      {payer_name}
+    slots:
+      change:
+        - "There has been a change at the top of our finance function and every existing commitment is being looked at afresh."
+        - "The person who used to approve payments at our level has moved and the limits have been rewritten."
+        - "Our group has appointed someone new over finance and the approval structure changed with immediate effect."
+        - "Authorisation levels across our companies were revised at the start of the month."
+      effect:
+        - "Files that had already been passed have gone back into the queue for a second look."
+        - "Nothing is moving until the revised limits are formally notified to the units."
+        - "We are being asked to justify releases that were already approved, which we did not expect."
+        - "Our own AP team has not been told how long this will take."
+      closing:
+        - "We are not able to give you a date and we would rather not give you one we cannot keep."
+        - "Please do not read this as a dispute on the bill. It is not."
+        - "We will come back to you the moment we have something definite."
+        - "If it helps, you are not the only supplier in this position with us."
+
+  - id: CE-03-group-review
+    strength: MEDIUM
+    signals: [SCOPE_PAUSE]
+    archetypes: [SILENT, RELIABLE_BUT_SLOW, CHRONIC_LATE]
+    weight: 3
+    subject:
+      - "RE: Invoice {invoice_no}"
+      - "RE: Reminder {invoice_no}"
+      - "Re: {invoice_no} - our position"
+    text: |-
+      Dear Sir/Madam,
+
+      {review}
+
+      {instruction}
+
+      {closing}
+
+      {contact_name}
+      {contact_role}
+    slots:
+      review:
+        - "An internal exercise is under way at our end covering all outstanding vendor commitments."
+        - "Our board has called for a complete listing of what is owed before any further disbursement is taken up."
+        - "We are preparing a consolidated position for our bankers and everything is waiting on that."
+        - "A review is on and we have been asked to compile rather than release."
+      instruction:
+        - "The instruction to the units is one line long and gives no reasons, so we cannot explain it further."
+        - "We have been told to queue everything and take no action in the meantime."
+        - "Our desk has no discretion at all until this concludes."
+        - "This applies to all our suppliers, not to your account in particular."
+      closing:
+        - "We are unable to say when it concludes. We would guess a fortnight, but that is a guess."
+        - "Please bear with us. There is no issue with your bill."
+        - "We will revert as soon as the exercise is over."
+        - "We would rather tell you this than keep giving you dates."
+
+  - id: CE-04-migration
+    strength: MEDIUM
+    signals: [SYSTEM_MIGRATION, DOC_MISSING]
+    archetypes: [SILENT, CHRONIC_LATE, RELIABLE_BUT_SLOW]
+    weight: 2
+    subject:
+      - "RE: {invoice_no} - system change at our end"
+      - "RE: Reminder - {invoice_no}"
+      - "Re: {invoice_no}"
+    text: |-
+      Hi,
+
+      {migration}
+
+      {effect}
+
+      {closing}
+
+      {contact_name}
+      {payer_name}
+    slots:
+      migration:
+        - "Our payables are being moved onto the parent company's platform and the cut-over is not finished."
+        - "The unit's accounting is being merged into the group system this quarter."
+        - "Vendor masters are being rebuilt at the centre and yours has not been created there yet."
+        - "We have gone live on a new approval workflow and it is not behaving as it should."
+      effect:
+        - "Open items from the old system have not carried across cleanly, and yours is one of them."
+        - "We cannot generate a payment run until the migration is signed off."
+        - "Your bills exist in the system we are leaving and are not visible in the one we are moving to."
+        - "The workflow rejects anything above a threshold and nobody here can override it."
+      closing:
+        - "No target date has been shared with us."
+        - "It was meant to be completed last month."
+        - "This is with our IT and our finance team has no control over the timeline."
+        - "Our suggestion would be to wait rather than follow up weekly; the answer will be the same."
+
+  - id: CE-05-holding-reply
+    strength: WEAK
+    signals: [APPROVAL_PENDING]
+    archetypes: [SILENT, CHRONIC_LATE, RELIABLE_BUT_SLOW]
+    weight: 4
+    subject:
+      - "RE: {invoice_no}"
+      - "RE: Reminder {invoice_no}"
+      - "Re: Payment {invoice_no}"
+    text: |-
+      {opening}
+
+      {holding}
+
+      {contact_name}
+    slots:
+      opening:
+        - "Noted."
+        - "Received, thank you."
+        - "Acknowledged."
+        - "Thanks for following up."
+      holding:
+        - "It is under process. We will revert."
+        - "We have taken it up internally and will come back to you."
+        - "Checking with the concerned team and will update."
+        - "It is in the queue. Nothing further at the moment."
+        - "We will let you know as soon as there is something to say."
+
+  - id: CE-06-not-my-desk
+    strength: MEDIUM
+    signals: [CONTACT_CHURN, APPROVAL_PENDING]
+    archetypes: [SILENT, CHRONIC_LATE, RELIABLE_BUT_SLOW]
+    weight: 2
+    subject:
+      - "RE: {invoice_no}"
+      - "FW: Invoice {invoice_no}"
+      - "Re: {invoice_no} - forwarded"
+    text: |-
+      Dear {merchant_short} team,
+
+      {handover}
+
+      {consequence}
+
+      {closing}
+
+      {contact_name}
+      {contact_role}
+    slots:
+      handover:
+        - "I no longer look after vendor payments for this unit and have moved your mail on."
+        - "This account has been reassigned and I am copying you only so the thread is not lost."
+        - "Payments are not handled from my desk any more, so I have passed your reminder along."
+        - "I have been asked to route queries of this kind elsewhere and have done so."
+      consequence:
+        - "I am not able to tell you where it stands after that point."
+        - "I do not have sight of the release schedule any longer."
+        - "Whether it moves this month or next is not something I can answer."
+        - "I would be guessing if I gave you a date, so I will not."
+      closing:
+        - "Apologies for the unhelpful reply. It is the honest one."
+        - "Please do not read this as the bill being in question. It is not."
+        - "If someone comes back to you it will not be from this address."
+        - "You may keep writing here and I will keep forwarding, but that is all I can do."
+
+  - id: CE-07-date-slipped
+    strength: WEAK
+    signals: [PROMISE_VAGUE, PAYMENT_CYCLE]
+    archetypes: [SILENT, CHRONIC_LATE, RELIABLE_BUT_SLOW]
+    weight: 4
+    subject:
+      - "RE: {invoice_no}"
+      - "RE: Payment status {invoice_no}"
+      - "Re: Reminder - {invoice_no}"
+    text: |-
+      Hello,
+
+      {slip}
+
+      {next}
+
+      {contact_name}
+    slots:
+      slip:
+        - "The release we mentioned did not go through in this cycle."
+        - "It missed the run. I am sorry, I did expect it to go."
+        - "We had it listed and it came back unprocessed."
+        - "It did not make the batch this time."
+      next:
+        - "I will put it up again for the next one."
+        - "Trying again shortly. I would rather not name a date."
+        - "It stays in the list. That is as much as I can say today."
+        - "Will chase it from this end as well."
+
+  - id: CE-08-brief-ack
+    strength: WEAK
+    signals: [APPROVAL_PENDING]
+    archetypes: [SILENT, CHRONIC_LATE, RELIABLE_BUT_SLOW]
+    weight: 3
+    subject:
+      - "Re: {invoice_no}"
+      - "RE: Outstanding {invoice_no}"
+      - "Re: Follow-up {invoice_no}"
+    text: |-
+      {line}
+
+      {contact_name}
+    slots:
+      line:
+        - "Received. With accounts."
+        - "Yes, we have it. Nothing to add at present."
+        - "Forwarded internally."
+        - "Seen. Will come back to you."
+        - "In hand."

@@ -1,0 +1,470 @@
+# Free-text corpus: replies from the payer's accounts-payable desk.
+#
+# Longer and messier than the portal notes, because real AP mail is. Signature
+# blocks, mixed register, half-answered questions, and the actual reason buried
+# in the third line. That is the point: this is what the reasoner is for.
+#
+# Same rule as payer_notes.yaml -- the template declares its signals and the
+# body must not contain the signal's own vocabulary.
+#
+# Reserved slots the generator fills in (do not declare these under `slots`):
+#   {invoice_no} {payer_name} {contact_name} {contact_role} {city}
+#   {merchant_short} {merchant_legal} {amount_rupees} {days_overdue}
+
+kind: EMAIL_REPLY
+
+templates:
+
+  - id: ER-01-in-the-run
+    signals: [PROMISE_VAGUE, PAYMENT_CYCLE]
+    archetypes: [RELIABLE_BUT_SLOW, CHRONIC_LATE]
+    weight: 3
+    subject:
+      - "RE: Reminder - Invoice {invoice_no}"
+      - "RE: Outstanding payment {invoice_no}"
+      - "Re: {merchant_short} - pending bill {invoice_no}"
+    text: |-
+      Dear Sir/Madam,
+
+      {ack} {position}
+
+      {cycle}
+
+      {ask}
+
+      Thanks & Regards,
+      {contact_name}
+      {contact_role}
+      {payer_name}, {city}
+    slots:
+      ack:
+        - "Your mail below refers."
+        - "Noted your reminder."
+        - "This is with reference to your follow-up mail."
+        - "We are in receipt of your reminder."
+      position:
+        - "The bill is booked at our end and is in the queue for release."
+        - "The voucher is passed and lying for payment."
+        - "It has been accounted and is awaiting the next disbursement."
+        - "Our records show the entry posted; only the release is pending."
+      cycle:
+        - "Payments to vendors are released twice a month, on the 10th and the 25th, and this one falls in the next cycle."
+        - "As you are aware our terms run from the receipt entry and not from the invoice date."
+        - "Our disbursement window is the last week of the month. There is no facility to prepone."
+        - "We settle vendor bills in a single run and the file for this run has already closed."
+      ask:
+        - "Kindly share the statement of account up to last month so that we can tally before release."
+        - "Please do not send repeated reminders on this; it will be released in course."
+        - "Request you to share the ledger copy for our confirmation."
+        - "Kindly bear with us till the cycle date."
+
+  - id: ER-02-approval-chain
+    signals: [APPROVAL_PENDING, PROMISE_VAGUE]
+    archetypes: [RELIABLE_BUT_SLOW, CHRONIC_LATE, SILENT]
+    weight: 3
+    subject:
+      - "RE: Invoice {invoice_no} - status"
+      - "RE: Payment follow-up {invoice_no}"
+      - "Re: Overdue {invoice_no}"
+    text: |-
+      Hello,
+
+      {stage}
+
+      {blocker}
+
+      {timing}
+
+      Regards
+      {contact_name}
+      {payer_name}
+    slots:
+      stage:
+        - "From our side the processing is complete."
+        - "AP has cleared it and it has gone up for approval."
+        - "The three-way match is done and the file has moved out of our desk."
+        - "It is passed and sitting in the approval queue."
+      blocker:
+        - "It now needs the sign-off of the person who approves above our branch limit, and that position has been unfilled since last month."
+        - "The approver is on site till the end of the fortnight and does not sign remotely."
+        - "Two authorisations are needed at this value and one of the two is on leave."
+        - "The approval window is once a week and this file missed the last one."
+      timing:
+        - "We will not be able to give a firm date until the sign-off happens."
+        - "Realistically it will move in the coming week, but please treat that as indicative."
+        - "You may write to us again after ten days if it has not landed."
+        - "Once it clears we will share the transfer reference the same day."
+
+  - id: ER-03-already-remitted
+    signals: [ALREADY_PAID, ANNOYED_AT_CHASING]
+    archetypes: [PAID_UNRECONCILED]
+    weight: 3
+    subject:
+      - "RE: Reminder - {invoice_no}"
+      - "RE: {invoice_no} - please check your records"
+      - "Re: Third reminder {invoice_no}"
+    text: |-
+      Dear {merchant_short} team,
+
+      {assertion}
+
+      {detail}
+
+      {instruction}
+
+      {contact_name}
+      {contact_role}
+      {payer_name}
+    slots:
+      assertion:
+        - "This bill was cleared from our side in the batch we ran a little while back."
+        - "As per our books there is nothing open against your account for that period."
+        - "Our reconciliation for that month is closed and this line does not appear in it."
+        - "We have already put through the transfer for this one along with three other bills of yours."
+      detail:
+        - "The advice went to the accounts id we have on file, which may be the one you have since changed."
+        - "The reference is on the advice our bank issued; we can resend it if your bank has not passed it on."
+        - "It went as a consolidated transfer, which is possibly why you are not seeing it bill-wise."
+        - "Our banker confirmed the debit; please have your end check the credits for that week before writing again."
+      instruction:
+        - "Kindly verify at your end first. We are getting reminders on a bill that is settled."
+        - "Please stop the automated reminders on this until you have checked."
+        - "Requesting you to close this from your follow-up list."
+        - "This is the third message we have had on it and it is not a good use of anyone's time."
+
+  - id: ER-04-po-block
+    signals: [PO_MISMATCH, DOC_MISSING]
+    archetypes: [DISPUTING]
+    weight: 2
+    subject:
+      - "RE: Invoice {invoice_no} - cannot be processed"
+      - "RE: {invoice_no}"
+      - "Re: Pending bill {invoice_no} - document issue"
+    text: |-
+      Sir,
+
+      {issue}
+
+      {system}
+
+      {requirement}
+
+      Regards,
+      {contact_name}
+      {contact_role}
+    slots:
+      issue:
+        - "The purchase order quoted on your bill is the earlier revision and was closed when the quantity was revised."
+        - "The rate on your bill is higher than the rate on the order by a small margin per unit, and our system will not accept the variance."
+        - "The order line you have billed against has no balance quantity left on it."
+        - "Your bill quotes an order that belongs to a different plant of ours."
+      system:
+        - "Our system parks anything that fails the match and it stays parked until purchase corrects it."
+        - "AP has no override for this; the correction has to come from the buyer."
+        - "We cannot post it against that order number, so no payment can be generated."
+        - "It has bounced back to the buyer's queue twice already."
+      requirement:
+        - "Please raise a fresh bill against the amended order and withdraw this one."
+        - "Kindly issue a credit note for the difference and a revised invoice for the correct value."
+        - "We need your despatch documents mapped to the correct order line before we can proceed."
+        - "Once purchase issues the amendment we will process it in the same week."
+
+  - id: ER-05-goods-held
+    signals: [GRN_MISMATCH, QUALITY_COMPLAINT]
+    archetypes: [DISPUTING]
+    weight: 2
+    subject:
+      - "RE: {invoice_no} - material under check"
+      - "RE: Payment reminder {invoice_no}"
+      - "Re: Invoice {invoice_no} - held at our end"
+    text: |-
+      Dear Sir,
+
+      {finding}
+
+      {consequence}
+
+      {position}
+
+      {contact_name}
+      {payer_name}, {city}
+    slots:
+      finding:
+        - "Our stores recorded a shortfall against your challan at the time of inward."
+        - "Quality has kept the consignment aside; the sample drawn did not meet the specification on the order."
+        - "Part of the consignment was recorded as damaged when it was received."
+        - "The grade delivered is not the grade specified on the order and our user department has objected."
+      consequence:
+        - "The receipt has been posted only for the accepted portion, so the bill does not tally with the entry."
+        - "The lot is lying at our gate and has not been taken into stock."
+        - "Nothing can be booked until the check report is issued."
+        - "Our system will only pay against what has been accepted, not against what was despatched."
+      position:
+        - "We have held the full value, not a part of it, as per our standing practice."
+        - "Please have your quality team respond to our note before we take this further."
+        - "A credit note will be required before anything is released."
+        - "Your despatch section has been written to twice and has not replied."
+
+  - id: ER-06-cash-position
+    signals: [HARDSHIP, PROMISE_VAGUE]
+    archetypes: [DISTRESSED]
+    weight: 3
+    subject:
+      - "RE: Invoice {invoice_no} - request for time"
+      - "RE: Outstanding {invoice_no}"
+      - "Re: {invoice_no}"
+    text: |-
+      Dear Sir,
+
+      {situation}
+
+      {consequence}
+
+      {proposal}
+
+      {tone}
+
+      {contact_name}
+      {contact_role}
+      {payer_name}
+    slots:
+      situation:
+        - "Two of our own customers, both state undertakings, have not released against bills that are older than yours."
+        - "An order we had bought material for was cancelled at short notice and the stock is still with us."
+        - "Our bank has kept the annual renewal of our limit pending and the drawing power has come down."
+        - "A customer of ours has gone into insolvency proceedings and a large receivable is stuck there."
+      consequence:
+        - "Our releases have been irregular for the last two months and yours is not the only one."
+        - "We are settling vendors in order of ageing and there are two ahead of you."
+        - "This month only wages and statutory dues have gone out."
+        - "We have had to stagger everything, including our own group companies."
+      proposal:
+        - "We can start releasing this in parts every fortnight if that is acceptable."
+        - "If you can allow us till the season, we will clear the full amount in one go."
+        - "We would rather agree a schedule with you than keep giving dates we miss."
+        - "Please tell us what part payment now would help you and we will try to arrange it."
+      tone:
+        - "We are not disputing the bill and we do not intend to."
+        - "We have been your customer for six years and we will clear this."
+        - "We would prefer to tell you the position rather than keep the phone off the hook."
+        - "Please treat this as a request and not as an excuse."
+
+  - id: ER-07-tax-credit
+    signals: [GST_MISMATCH, DOC_MISSING]
+    archetypes: [RELIABLE_BUT_SLOW, CHRONIC_LATE, SILENT]
+    weight: 2
+    subject:
+      - "RE: {invoice_no} - credit not reflecting"
+      - "RE: Payment {invoice_no} - document pending"
+      - "Re: Invoice {invoice_no}"
+    text: |-
+      Hi,
+
+      {problem}
+
+      {policy}
+
+      {ask}
+
+      Regards
+      {contact_name}
+      {payer_name}
+    slots:
+      problem:
+        - "Your invoice is not appearing in our auto-populated statement for that month."
+        - "The reference number printed on your copy does not match what the portal returns for us."
+        - "It looks like the original document was cancelled and re-issued, and only the cancelled one is visible at our end."
+        - "The place of supply on your bill puts the credit with our other state registration, not the one that bought the material."
+      policy:
+        - "Our standing instruction is not to release until the credit is visible to us."
+        - "The statutory team has flagged it and AP follows their hold."
+        - "We do not process anything that has not auto-populated; there are no exceptions on this."
+        - "Our auditors have specifically asked us not to release against unmatched credits."
+      ask:
+        - "Kindly confirm whether the return for that period has been filed."
+        - "Please share the signed copy with a valid reference number."
+        - "Let us know when the amendment will be filed and we will schedule it after that."
+        - "A certificate from your side confirming the filing would help us release it."
+
+  - id: ER-08-new-desk
+    signals: [CONTACT_CHURN, ONBOARDING_PENDING]
+    archetypes: [SILENT, CHRONIC_LATE]
+    weight: 2
+    subject:
+      - "RE: Reminder {invoice_no}"
+      - "Automatic reply / RE: {invoice_no}"
+      - "RE: {invoice_no} - forwarded to correct desk"
+    text: |-
+      Hello,
+
+      {handover}
+
+      {gap}
+
+      {next}
+
+      {contact_name}
+      {contact_role}
+    slots:
+      handover:
+        - "The colleague who was handling your account is no longer with us."
+        - "Vendor payments have moved to our shared services centre and the team there is new."
+        - "This desk has taken over the account only this month."
+        - "Our payables are now processed by an external agency and we are the co-ordination point."
+      gap:
+        - "The earlier correspondence on this bill is not visible to us."
+        - "We do not have the earlier trail; the mailbox was not migrated."
+        - "The handover file does not mention this invoice at all."
+        - "Whatever was agreed earlier we have no record of."
+      next:
+        - "Please resend the invoice copy along with the delivery documents so that we can start."
+        - "Kindly send the full statement so we can pick up all your open items together."
+        - "We will need to build the file from scratch; give us a fortnight."
+        - "Send everything to this id going forward; the old one is not monitored."
+
+  - id: ER-09-part-payment
+    signals: [PARTIAL_CONFUSION, TDS_DEDUCTION]
+    archetypes: [CHRONIC_LATE, DISPUTING, PAID_UNRECONCILED]
+    weight: 2
+    subject:
+      - "RE: {invoice_no} - reconciliation"
+      - "RE: Balance on {invoice_no}"
+      - "Re: {invoice_no} short payment"
+    text: |-
+      Dear Sir,
+
+      {what_happened}
+
+      {mechanics}
+
+      {ask}
+
+      Thanks,
+      {contact_name}
+      {payer_name}
+    slots:
+      what_happened:
+        - "A transfer of {amount_rupees} was released to you last month covering several bills together."
+        - "We paid a round figure against your account and did not send a bill-wise break-up."
+        - "The value was reduced by the withholding tax and by a freight recovery we had booked earlier."
+        - "Part of this has been adjusted against a credit note that was pending from our side."
+      mechanics:
+        - "Your reminders still show the full value, so clearly the allocation has not been done at your end."
+        - "In our books the balance outstanding is different from what your statement shows."
+        - "The deduction is a statutory one and the certificate will be issued at quarter end."
+        - "The netting was agreed with your sales team but it appears your accounts were not told."
+      ask:
+        - "Kindly send an invoice-wise knock-off statement so we can agree the balance."
+        - "Please confirm the allocation and we will release whatever remains."
+        - "Let us do a reconciliation call before any further reminders."
+        - "Once you confirm the netting, the balance will move in the next run."
+
+  - id: ER-10-link-request
+    signals: [CHANNEL_REQUEST, ONBOARDING_PENDING]
+    archetypes: [CHRONIC_LATE, RELIABLE_BUT_SLOW, DISTRESSED]
+    weight: 2
+    subject:
+      - "RE: {invoice_no} - how do we pay"
+      - "RE: Payment mode for {invoice_no}"
+      - "Re: {invoice_no}"
+    text: |-
+      Hi,
+
+      {ask}
+
+      {reason}
+
+      {closing}
+
+      {contact_name}
+      {payer_name}
+    slots:
+      ask:
+        - "Is there a payment page you can send instead of bank details?"
+        - "Could you send a link that we can forward internally for approval and payment in one step?"
+        - "Do you accept card payment through a link?"
+        - "Can this be paid online rather than by transfer?"
+      reason:
+        - "Adding a new beneficiary at our bank takes a working week and two approvals."
+        - "Our vendor master update for you is still pending, so a transfer will bounce."
+        - "Our per-beneficiary transfer limit is lower than this value and splitting it needs a separate approval."
+        - "New beneficiary additions have been stopped at our treasury this quarter."
+      closing:
+        - "If you send it today we can get it done before the weekend."
+        - "Please send it to this id and mark our director in copy."
+        - "That would be much faster than waiting for the master to be updated."
+        - "We would rather close this than keep it open."
+
+  - id: ER-11-stop-writing
+    signals: [ANNOYED_AT_CHASING, ESCALATION_THREAT]
+    archetypes: [DISPUTING, PAID_UNRECONCILED, DISTRESSED]
+    weight: 1
+    subject:
+      - "RE: {invoice_no} - please note"
+      - "RE: Repeated reminders - {invoice_no}"
+      - "Re: {invoice_no}"
+    text: |-
+      {salutation}
+
+      {count}
+
+      {objection}
+
+      {instruction}
+
+      {contact_name}
+      {contact_role}
+      {payer_name}
+    slots:
+      salutation:
+        - "Sir,"
+        - "Dear Sir/Madam,"
+        - "To whom it may concern,"
+      count:
+        - "This is the fourth message from your side in eight days, one of which arrived well after working hours."
+        - "We have now had reminders by mail, by message and by phone on the same bill in the same week."
+        - "Your system has written to our director, our purchase head and our AP desk on the same day."
+        - "We have replied twice explaining the position and the reminders have continued regardless."
+      objection:
+        - "The matter is under query at our end and you have been told so in writing."
+        - "The bill is not payable in its present form and that has been communicated."
+        - "We consider this level of follow-up excessive for an account of this standing."
+        - "Nothing in your reminders addresses the point we raised."
+      instruction:
+        - "Kindly route all correspondence through this id only and stop the messages."
+        - "Please suspend further reminders until the query is closed."
+        - "Any further communication should come from someone authorised to settle the point."
+        - "We will place the matter with our legal desk if the reminders continue."
+
+  - id: ER-12-quiet-acknowledgement
+    signals: [SEASONAL_DELAY, APPROVAL_PENDING]
+    archetypes: [RELIABLE_BUT_SLOW, SILENT, CHRONIC_LATE]
+    weight: 2
+    subject:
+      - "RE: {invoice_no}"
+      - "Auto: Out of office / RE: {invoice_no}"
+      - "RE: Reminder - {invoice_no}"
+    text: |-
+      {opening}
+
+      {reason}
+
+      {when}
+
+      {contact_name}
+    slots:
+      opening:
+        - "Received."
+        - "Noted, thank you."
+        - "Acknowledged."
+        - "Thanks for the reminder."
+      reason:
+        - "Our accounts section is closed for the festival week."
+        - "We are in the middle of the year-end closing and releases are frozen until the books are locked."
+        - "The plant is under its annual shutdown and the payables team is on rotation."
+        - "Our audit is on and the auditors have asked us to hold fresh releases."
+      when:
+        - "Please write again after ten days."
+        - "It will be taken up once the closing is done."
+        - "Skeleton staff only this week; the signatory is not among them."
+        - "The queue restarts after the sign-off, which is expected shortly."

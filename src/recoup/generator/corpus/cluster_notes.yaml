@@ -1,0 +1,208 @@
+# Free-text corpus: the CLUSTER pool. Notes.
+#
+# These attach only to the nine invoices of the parent group that all go quiet
+# inside one virtual week. Build spec section 7b: the batch-level insight has to
+# notice that this is one account-level event and not nine independent
+# delinquencies -- and it has to notice it from co-occurrence plus indirect
+# hints, not from a note that names the cause.
+#
+# BANNED VOCABULARY in this pool. If any of these words appears in a template
+# body, the insight is worthless and a judge will say so:
+#     freeze  frozen  procurement  payment hold  on hold  suspended
+#     moratorium  stopped payments  blocked payments
+#
+# A test enforces this list. See tests/test_corpus.py.
+#
+# Hint strength is graded on purpose:
+#   STRONG   names a centralisation or an authority change, without a cause
+#   MEDIUM   describes a loss of local visibility or a pending review
+#   WEAK     an ordinary non-answer, indistinguishable from routine slippage
+# Only two of the nine carry a STRONG hint, three carry MEDIUM, and the rest
+# carry WEAK or nothing at all. Detecting the event from the weak ones alone is
+# the actual test.
+
+kind: PAYER_NOTE
+pool: CLUSTER
+
+templates:
+
+  - id: CN-01-central-desk
+    strength: STRONG
+    signals: [CENTRALISATION_HINT]
+    archetypes: [SILENT, RELIABLE_BUT_SLOW, CHRONIC_LATE]
+    weight: 2
+    text: >-
+      {change} {consequence} {closer}
+    slots:
+      change:
+        - "Vendor releases for this unit are no longer made here; the file goes to the group office now."
+        - "Their unit has lost its payment authority with effect from this month."
+        - "Everything above a small local limit is now decided at the group finance desk."
+        - "The unit can raise the voucher but cannot release it any more."
+      consequence:
+        - "AP here has forwarded our file and has no visibility after that."
+        - "The person we deal with cannot see the status once it leaves their system."
+        - "They are not able to tell us who is holding it."
+        - "There is no one at this end who can give a date."
+      closer:
+        - "Same answer from them for the third time."
+        - "They were apologetic but had nothing to add."
+        - "Asked us not to keep calling since the answer will not change."
+        - "Said we may hear from the group office directly."
+
+  - id: CN-02-authority-change
+    strength: STRONG
+    signals: [AUTHORITY_CHANGE]
+    archetypes: [SILENT, CHRONIC_LATE, RELIABLE_BUT_SLOW]
+    weight: 2
+    text: >-
+      {change} {consequence} {closer}
+    slots:
+      change:
+        - "There is a new person in charge of finance across their companies."
+        - "Their group has brought in someone senior and every commitment is being looked at again."
+        - "The signatory who used to clear our bills has been moved to another role."
+        - "Approval limits across their units were rewritten at the start of this month."
+      consequence:
+        - "Anything already in the queue has gone back for a fresh look."
+        - "Files that were passed are being re-examined before release."
+        - "Nobody at the unit will commit to a date until the new limits are notified."
+        - "Their AP says the rules changed under them and they are waiting for clarity."
+      closer:
+        - "No indication of how long this will take."
+        - "They said to expect a delay but could not say how much."
+        - "The tone was cooperative, the information was nil."
+        - "They suggested we write to their head office instead."
+
+  - id: CN-03-review
+    strength: MEDIUM
+    signals: [SCOPE_PAUSE, APPROVAL_PENDING]
+    archetypes: [SILENT, RELIABLE_BUT_SLOW, CHRONIC_LATE]
+    weight: 3
+    text: >-
+      {review} {effect} {closer}
+    slots:
+      review:
+        - "A review of vendor commitments is going on at their end."
+        - "Their board has asked for a listing of every outstanding commitment before anything further moves."
+        - "An internal exercise is on across their companies and releases are waiting on it."
+        - "They are compiling a position statement for their lenders."
+      effect:
+        - "Until it concludes, the unit has been told to wait."
+        - "Nothing is being released in the meantime, ours or anyone else's."
+        - "Their AP has been asked to queue everything and not to act."
+        - "The instruction they have is one line long and gives no reason."
+      closer:
+        - "They could not say when it concludes."
+        - "Asked for two weeks, without confidence."
+        - "Said they would revert, and did not."
+        - "This is the second time we have been told the same thing."
+
+  - id: CN-04-system-cutover
+    strength: MEDIUM
+    signals: [SYSTEM_MIGRATION]
+    archetypes: [SILENT, CHRONIC_LATE, RELIABLE_BUT_SLOW]
+    weight: 2
+    text: >-
+      {migration} {effect} {closer}
+    slots:
+      migration:
+        - "Their payables are being moved onto the group platform and the cut-over is not complete."
+        - "The unit's accounting system is being merged into the parent's this quarter."
+        - "Vendor masters are being rebuilt centrally and ours has not been created yet."
+        - "They have gone live on a new approval workflow and it is not working properly."
+      effect:
+        - "Open items from the old system have not carried across."
+        - "They cannot generate a payment run until the migration is signed off."
+        - "Our bills exist in the old system and are invisible in the new one."
+        - "The workflow rejects everything above a threshold and nobody can override it."
+      closer:
+        - "No target date given."
+        - "They said it was supposed to be done last month."
+        - "Their IT is handling it and finance has no control over the timeline."
+        - "Suggested we wait rather than keep following up."
+
+  - id: CN-05-no-answer
+    strength: WEAK
+    signals: [APPROVAL_PENDING]
+    archetypes: [SILENT, CHRONIC_LATE, RELIABLE_BUT_SLOW]
+    weight: 4
+    text: >-
+      {nonanswer} {closer}
+    slots:
+      nonanswer:
+        - "No update from their side."
+        - "Called twice, was told it is under process."
+        - "They acknowledged the reminder and said nothing further."
+        - "Message delivered, no reply."
+        - "Their AP said they will check and revert."
+      closer:
+        - "Nothing since."
+        - "No date offered."
+        - "Third follow-up with the same answer."
+        - "Have asked for a call with their manager."
+        - "Account has gone quiet in the last fortnight."
+
+  - id: CN-06-contact-vanished
+    strength: MEDIUM
+    signals: [CONTACT_CHURN, APPROVAL_PENDING]
+    archetypes: [SILENT, CHRONIC_LATE, RELIABLE_BUT_SLOW]
+    weight: 2
+    text: >-
+      {churn} {effect} {closer}
+    slots:
+      churn:
+        - "The person we have dealt with for two years no longer handles our account."
+        - "Our usual contact has stopped responding and the number goes to someone else."
+        - "The AP executive we worked with has been reassigned within the group."
+        - "Three different people have replied to the same thread, none of them the one we know."
+      effect:
+        - "Whoever picks up now says it is not with them any more."
+        - "The replacement has the file but says the decision is not theirs."
+        - "Each of them refers us to the next and none of them will name a date."
+        - "Nobody at the unit will say who is holding it now."
+      closer:
+        - "We have asked for a name and not been given one."
+        - "The mails are being read; nothing comes back."
+        - "Same experience reported on their sister company's account."
+        - "Have asked to be pointed at whoever can actually decide."
+
+  - id: CN-07-deferred-again
+    strength: WEAK
+    signals: [PROMISE_VAGUE]
+    archetypes: [SILENT, CHRONIC_LATE, RELIABLE_BUT_SLOW]
+    weight: 4
+    text: >-
+      {deferral} {closer}
+    slots:
+      deferral:
+        - "Told us it would go in this week's run, then it did not."
+        - "The date they gave us has passed without anything."
+        - "Second date given and missed."
+        - "Was assured it was cleared for release; nothing has come in."
+        - "They keep pushing it by a week each time we ask."
+      closer:
+        - "No explanation offered."
+        - "Asked why and got no answer."
+        - "They are still taking our calls, which is something."
+        - "Not refusing, just not paying."
+        - "Have stopped giving dates altogether now."
+
+  - id: CN-08-slower-than-usual
+    strength: WEAK
+    signals: [PAYMENT_CYCLE]
+    archetypes: [SILENT, CHRONIC_LATE, RELIABLE_BUT_SLOW]
+    weight: 3
+    text: >-
+      {observation} {closer}
+    slots:
+      observation:
+        - "Running noticeably behind their usual pattern on this one."
+        - "They have always paid late but never this late."
+        - "Two cycles have gone by without a release, which is unlike them."
+        - "Their last three bills cleared without a reminder; this one has not moved."
+      closer:
+        - "Nothing to suggest a problem with the bill itself."
+        - "No complaint raised, no query on the documents."
+        - "Worth watching rather than chasing at this stage."
+        - "Have not pressed them yet."

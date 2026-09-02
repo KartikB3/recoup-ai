@@ -1,0 +1,452 @@
+# Free-text corpus: notes recorded against an invoice.
+#
+# Mostly the payer's own words, captured from a portal remark, a WhatsApp
+# message to the AR desk, or a phone call the AR executive typed up.
+#
+# THE RULE THAT MAKES THIS CORPUS WORTH WRITING
+# --------------------------------------------
+# A template declares the signals it carries, and the body must NOT contain the
+# signal's own vocabulary. "We dispute this invoice" is a regex. "The GRN
+# quantity does not tally with your challan so the lot is held at gate" is a
+# reasoning task. If a template fails that test, rewrite it.
+#
+# Slots are substituted from a seeded RNG. Every list here is ordered, and
+# reordering one changes the emitted batch.
+
+kind: PAYER_NOTE
+
+templates:
+
+  - id: PN-01-payment-run
+    signals: [PROMISE_VAGUE, DOC_MISSING]
+    archetypes: [RELIABLE_BUT_SLOW, CHRONIC_LATE]
+    weight: 3
+    text: >-
+      {opener} this bill is tagged for {run} vendor run. {soa_ask} {sign}
+    slots:
+      opener:
+        - "Spoke to accounts -"
+        - "Payer remark on portal:"
+        - "Reply over call:"
+        - "Message from their AP desk:"
+      run:
+        - "this week's"
+        - "next week's"
+        - "the month-end"
+        - "the 25th"
+        - "the first fortnight"
+      soa_ask:
+        - "Kindly share the SOA so we can tally before release."
+        - "They have asked for a statement up to last month before they process."
+        - "Requested a ledger copy for confirmation."
+        - "Wants the running account statement mailed to the AP id."
+      sign:
+        - "No commitment on date."
+        - "Said not to send further reminders till then."
+        - "Will confirm once the run is scheduled."
+        - "Nothing in writing yet."
+
+  - id: PN-02-grn-cycle
+    signals: [PAYMENT_CYCLE]
+    archetypes: [RELIABLE_BUT_SLOW]
+    weight: 3
+    text: >-
+      Their standard terms are {days} days from {anchor}, not from invoice
+      date. {detail} {closer}
+    slots:
+      days: ["45", "60", "75", "90"]
+      anchor:
+        - "GRN"
+        - "goods receipt at their Stores"
+        - "the GRN posting date"
+        - "material inward entry"
+      detail:
+        - "GRN was posted late at their end, so their clock started after ours."
+        - "Their system shows the receipt a fortnight after our despatch."
+        - "Stores took time to post the receipt and the AP clock runs off that."
+        - "They count from inward, and inward happened after the plant shutdown."
+      closer:
+        - "Nothing unusual for this account."
+        - "Same pattern as the last four bills."
+        - "History supports this."
+        - "They have never skipped, only stretched."
+
+  - id: PN-03-approval-pending
+    signals: [APPROVAL_PENDING]
+    archetypes: [RELIABLE_BUT_SLOW, CHRONIC_LATE, SILENT]
+    weight: 3
+    text: >-
+      {status} The file is with {authority} for sign-off. {reason}
+    slots:
+      status:
+        - "Payer says processing is complete at their end."
+        - "AP has passed it."
+        - "Voucher is made, payment not released."
+        - "It has cleared the three-way match."
+      authority:
+        - "their Finance Head"
+        - "the director who signs above two lakhs"
+        - "the plant head, who is at a site"
+        - "their group treasury desk"
+        - "the office that clears anything above their branch limit"
+      reason:
+        - "That seat has been vacant since the last person moved on."
+        - "Their signatory is on leave till month end."
+        - "Board meeting week, so releases are queued."
+        - "Two approvers are required above their limit and one is travelling."
+        - "Sign-off happens in a weekly window they missed."
+
+  - id: PN-04-explicit-promise
+    signals: [PROMISE_EXPLICIT]
+    archetypes: [CHRONIC_LATE, RELIABLE_BUT_SLOW, DISTRESSED]
+    weight: 3
+    text: >-
+      {who} committed on call that the transfer will go out {when}. {qualifier}
+    slots:
+      who:
+        - "Their AP executive"
+        - "The proprietor"
+        - "Their accounts officer"
+        - "Their finance manager"
+      when:
+        - "by Friday"
+        - "next Tuesday"
+        - "by the 15th"
+        - "within 10 days"
+        - "by end of this month"
+        - "on Monday"
+        - "in the next 3 days"
+        - "before the weekend"
+        - "after the festival break"
+        - "once the season picks up"
+      qualifier:
+        - "Asked us to hold reminders till then."
+        - "Said the transfer is already queued in their banking portal."
+        - "Wants a call only if it does not land."
+        - "Has committed on date twice before and honoured it once."
+        - "Said the paperwork is done and only release is pending."
+
+  - id: PN-05-already-released
+    signals: [ALREADY_PAID]
+    archetypes: [PAID_UNRECONCILED]
+    weight: 3
+    text: >-
+      {claim} {evidence} {tone}
+    slots:
+      claim:
+        - "Payer insists this went out in their batch run."
+        - "They say nothing is open against us beyond last month's bills."
+        - "As per their books this line is squared off."
+        - "They maintain the transfer was made along with four other bills."
+      evidence:
+        - "Their banker's advice should already be with our bank."
+        - "Said the reference number was mailed to the old AR id."
+        - "Quoted a reference from their transfer run on Tuesday."
+        - "Offered to send the debit advice if we cannot trace it."
+      tone:
+        - "Asked us to check our end first."
+        - "Not happy about being asked twice."
+        - "Wants confirmation before they will look again."
+        - "Said their reconciliation is done up to that week."
+
+  - id: PN-06-partial-confusion
+    signals: [PARTIAL_CONFUSION]
+    archetypes: [CHRONIC_LATE, DISPUTING, PAID_UNRECONCILED]
+    weight: 2
+    text: >-
+      {opening} {mechanics} {ask}
+    slots:
+      opening:
+        - "They have knocked off part of this against an older credit note."
+        - "A round-sum transfer came in covering several bills and the allocation is unclear."
+        - "Their remittance advice splits this across two invoices."
+        - "Part of the value sits against a debit note they raised earlier."
+      mechanics:
+        - "Our books show the full value open; theirs show a balance only."
+        - "The advice does not carry an invoice-wise break-up."
+        - "Amount received does not tie to any single bill."
+        - "They netted a freight recovery without telling us."
+      ask:
+        - "Asked for an invoice-wise knock-off statement."
+        - "Wants us to confirm allocation before releasing the balance."
+        - "Says the balance moves once we agree the netting."
+        - "Requested a reconciliation call with our AR desk."
+
+  - id: PN-07-po-mismatch
+    signals: [PO_MISMATCH]
+    archetypes: [DISPUTING]
+    weight: 2
+    text: >-
+      {problem} {consequence} {ask}
+    slots:
+      problem:
+        - "The PO number on the bill is the old revision."
+        - "Rate billed is above the PO rate by a few rupees a unit."
+        - "Bill is raised on the PO that was superseded in July."
+        - "Quantity billed exceeds the balance quantity on that PO."
+      consequence:
+        - "Their system will not let AP post it against that PO."
+        - "It is stuck at the buyer's desk, not at AP."
+        - "The line fails their three-way match and bounces back."
+        - "AP has parked it and will not process till purchase corrects it."
+      ask:
+        - "They want a revised bill against the amended PO."
+        - "Asked for a credit note for the differential and a fresh invoice."
+        - "Purchase has to raise an amendment first; AP will not move till then."
+        - "Wants our despatch documents mapped to the correct PO line."
+
+  - id: PN-08-grn-short
+    signals: [GRN_MISMATCH, QUALITY_COMPLAINT]
+    archetypes: [DISPUTING]
+    weight: 2
+    text: >-
+      {issue} {status} {position}
+    slots:
+      issue:
+        - "Received quantity per their GRN is short against our challan."
+        - "Two cartons were recorded damaged at inward."
+        - "Their QC has held the lot pending a re-test."
+        - "The batch supplied does not match the grade on the PO."
+      status:
+        - "Material is lying at their gate, not taken into stock."
+        - "Stores has posted a partial GRN only."
+        - "Their QC report is awaited and nothing moves till it lands."
+        - "They have raised an inward discrepancy note internally."
+      position:
+        - "They will not process the bill for the full value."
+        - "AP is holding the entire amount, not the short portion."
+        - "They want a credit note before any release."
+        - "Our despatch team has to respond before their file moves."
+
+  - id: PN-09-tds
+    signals: [TDS_DEDUCTION]
+    archetypes: [RELIABLE_BUT_SLOW, CHRONIC_LATE, DISPUTING]
+    weight: 2
+    text: >-
+      {deduction} {gap} {ask}
+    slots:
+      deduction:
+        - "They are deducting tax at source at two percent on the gross."
+        - "Their AP applies withholding on the full bill including the tax component."
+        - "Deduction has been made under the contract section, not the professional one."
+        - "They have withheld a percentage citing a lower-deduction certificate we did not submit."
+      gap:
+        - "Our invoice was raised on the net, so the two do not tie."
+        - "Difference is small in value but blocks the write-off of the balance."
+        - "The balance shows open in our books and closed in theirs."
+        - "We have not received their certificate for the earlier quarter either."
+      ask:
+        - "Asked for our certificate reference before they release the balance."
+        - "They will issue the certificate at quarter end, not before."
+        - "Wants a no-objection on the deduction rate in writing."
+        - "Asked us to raise a credit note for the withheld portion."
+
+  - id: PN-10-gst-credit
+    signals: [GST_MISMATCH, DOC_MISSING]
+    archetypes: [RELIABLE_BUT_SLOW, CHRONIC_LATE, SILENT]
+    weight: 2
+    text: >-
+      {problem} {policy} {ask}
+    slots:
+      problem:
+        - "The invoice is not reflecting in their 2B for the month."
+        - "The IRN on our copy does not match what their portal shows."
+        - "The e-invoice was cancelled and re-raised, and only the cancelled one is visible to them."
+        - "Place of supply on the bill puts the credit in the wrong state for them."
+      policy:
+        - "Their policy is no release until the credit is visible."
+        - "AP will not process anything that is not auto-populated."
+        - "Their tax desk has flagged it and AP follows the tax desk."
+        - "Their statutory team blocks payment where credit is unmatched."
+      ask:
+        - "Asked us to check the filing for that period."
+        - "Wants the signed e-invoice PDF with a valid IRN."
+        - "Requested a certificate confirming the return was filed."
+        - "Asked when the amendment will be filed."
+
+  - id: PN-11-cashflow
+    signals: [HARDSHIP]
+    archetypes: [DISTRESSED]
+    weight: 3
+    text: >-
+      {situation} {approach} {tone}
+    slots:
+      situation:
+        - "Their own collections from two state clients have not moved since the quarter closed."
+        - "A large order was cancelled after they had bought the raw material."
+        - "Their working-capital limit has been under review since the bank's annual renewal."
+        - "One of their customers went into insolvency and took a big receivable with them."
+      approach:
+        - "They are clearing vendors oldest-first and we are third in that queue."
+        - "Paying in parts every fortnight rather than in one go."
+        - "Have asked for time till the season picks up."
+        - "Releasing only statutory dues and wages this month."
+      tone:
+        - "Voice on the call was not a stalling one."
+        - "Offered to sign a schedule if we want it in writing."
+        - "Asked, without being asked, whether part payment now would help us."
+        - "Was straightforward about the position rather than evasive."
+        - "Said they would rather tell us the position than keep giving dates."
+
+  - id: PN-12-chased-too-often
+    signals: [ANNOYED_AT_CHASING, ALREADY_PAID]
+    archetypes: [PAID_UNRECONCILED, DISPUTING]
+    weight: 2
+    text: >-
+      {complaint} {instruction}
+    slots:
+      complaint:
+        - "This is the fourth reminder on a bill they say is settled."
+        - "They have had three messages in a week including one late at night."
+        - "Their AP head has asked why they are being messaged on a bill that is under query."
+        - "Two of our reminders went to their director instead of the AP desk."
+      instruction:
+        - "Asked that we check our bank statement before writing again."
+        - "Asked us to route everything through one email id and stop the SMS."
+        - "Said further reminders will be marked to their legal desk."
+        - "Requested that we suspend chasers until the query is closed."
+
+  - id: PN-13-contact-churn
+    signals: [CONTACT_CHURN]
+    archetypes: [SILENT, CHRONIC_LATE]
+    weight: 2
+    text: >-
+      {churn} {effect}
+    slots:
+      churn:
+        - "The person who handled our account has left."
+        - "Their shared-services centre has moved to another city and the team is new."
+        - "AP has been outsourced to a third-party processing centre."
+        - "Their accounts email is now a ticketing id with no named owner."
+      effect:
+        - "Mails to the old id are bouncing."
+        - "No one has picked up on the landline for two weeks."
+        - "Replies come from a queue and none of them are about this bill."
+        - "We do not have a working mobile number for the new person."
+        - "Our earlier mails are not visible to whoever is handling it now."
+
+  - id: PN-14-consolidate
+    signals: [CONSOLIDATION_REQUEST]
+    archetypes: [CHRONIC_LATE, RELIABLE_BUT_SLOW]
+    weight: 2
+    text: >-
+      {request} {condition}
+    slots:
+      request:
+        - "They want all open bills clubbed and paid in one go."
+        - "Asked us to stop invoice-wise follow-up and work off a statement."
+        - "Prefer a single monthly settlement rather than bill-by-bill release."
+        - "Want a consolidated demand mailed on the first of the month."
+      condition:
+        - "Nothing moves till the statement is agreed by both sides."
+        - "They will fix a date once the statement is signed off."
+        - "Said the individual reminders are creating duplicate entries at their end."
+        - "Asked us to nominate one person for the reconciliation."
+
+  - id: PN-15-channel-request
+    signals: [CHANNEL_REQUEST]
+    archetypes: [CHRONIC_LATE, RELIABLE_BUT_SLOW, DISTRESSED]
+    weight: 2
+    text: >-
+      {ask} {reason}
+    slots:
+      ask:
+        - "Asked for a payment page instead of bank details."
+        - "Wants a link they can forward to their director for approval and payment."
+        - "Requested an online option since their per-beneficiary transfer limit is low."
+        - "Asked whether they can pay by card through a link."
+      reason:
+        - "Adding a new beneficiary in their bank takes them a working week."
+        - "Vendor master update is pending at their end, so a transfer will bounce."
+        - "They find the approval faster if it is a single click."
+        - "Their treasury has stopped adding new beneficiaries this quarter."
+
+  - id: PN-16-bank-rejection
+    signals: [BANK_REJECTION, ONBOARDING_PENDING]
+    archetypes: [CHRONIC_LATE, SILENT, RELIABLE_BUT_SLOW]
+    weight: 2
+    text: >-
+      {event} {fix}
+    slots:
+      event:
+        - "Their transfer came back unpaid; the account number on their master is our old one."
+        - "Payment failed at their bank because our name on the master does not match the account."
+        - "The branch code on their vendor master belongs to a branch that was merged."
+        - "Their remittance was returned and they have not re-initiated it."
+      fix:
+        - "A cancelled cheque and a fresh bank mandate have been asked for."
+        - "Vendor master change needs two approvals at their end and one is pending."
+        - "They will retry after the master is corrected, no date given."
+        - "Asked us to confirm the account in writing on our letterhead."
+
+  - id: PN-17-msme
+    signals: [MSME_REFERENCE, ESCALATION_THREAT]
+    archetypes: [DISPUTING, CHRONIC_LATE]
+    weight: 1
+    text: >-
+      {frame} {position}
+    slots:
+      frame:
+        - "We have reminded them that our registration entitles us to settlement within forty-five days."
+        - "Our proprietor has raised the delay against the statutory settlement period."
+        - "We flagged that the ageing has crossed the period allowed for a registered small enterprise."
+        - "Their buyer has been told the delay attracts interest under the small-enterprise rules."
+      position:
+        - "Their AP says the clock runs from acceptance, not from despatch."
+        - "They have asked for our registration certificate before they respond."
+        - "Their legal desk is now copied on the thread, which has slowed it further."
+        - "They dispute the start date of the period rather than the entitlement."
+
+  - id: PN-18-settlement-ask
+    signals: [SETTLEMENT_REQUEST, HARDSHIP]
+    archetypes: [DISTRESSED, DISPUTING]
+    weight: 1
+    text: >-
+      {ask} {frame}
+    slots:
+      ask:
+        - "They have asked whether we would take a reduced figure to close the line."
+        - "Proposed clearing the principal and knocking off the interest and freight."
+        - "Asked for a waiver on the late charge in return for immediate release."
+        - "Offered a lump sum now against a write-back of the balance."
+      frame:
+        - "Nothing has been agreed and nothing should be, at our end, without approval."
+        - "This is above what our AR desk can decide."
+        - "They want it in writing from someone senior."
+        - "Their offer is open till month end, they say."
+
+  - id: PN-19-entity-mismatch
+    signals: [ENTITY_MISMATCH, DUPLICATE_CLAIM]
+    archetypes: [DISPUTING, SILENT]
+    weight: 1
+    text: >-
+      {problem} {consequence}
+    slots:
+      problem:
+        - "The bill is raised on their old entity, which was merged last year."
+        - "Registration number on the invoice belongs to their other state unit."
+        - "The billing address is their head office but the supply went to the plant."
+        - "They say two bills carry the same challan reference and one is a repeat."
+      consequence:
+        - "Their AP cannot book it against the entity that received the goods."
+        - "Nothing will move till a fresh bill is raised on the correct registration."
+        - "They have asked us to withdraw one of the two and confirm in writing."
+        - "The credit is landing with an entity that did not buy the material."
+
+  - id: PN-20-seasonal
+    signals: [SEASONAL_DELAY]
+    archetypes: [RELIABLE_BUT_SLOW, CHRONIC_LATE, SILENT]
+    weight: 1
+    text: >-
+      {event} {effect}
+    slots:
+      event:
+        - "Their accounts section is shut for the festival week."
+        - "Year-end closing is on at their end and releases are frozen till books are locked."
+        - "Their plant is under annual maintenance shutdown and the AP team is on rotation."
+        - "Audit is in progress and the auditors have asked them not to release fresh payments."
+      effect:
+        - "Nothing will move for another eight to ten days."
+        - "They said to write again after the closing."
+        - "Skeleton staff only, and the signatory is not among them."
+        - "The queue restarts once the audit sign-off is done."

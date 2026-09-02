@@ -1,0 +1,85 @@
+# Synthetic Indian B2B counterparties. Every name here is invented. No real
+# company, person, GSTIN, bank account or phone number appears in this repo.
+#
+# Consumed by generator/generate.py. Order is significant: the generator indexes
+# into these lists from a seeded RNG, so reordering a list changes the batch.
+
+payers:
+  # --- ordinary book ------------------------------------------------------
+  - {id: PYR-001, name: "Meridian Polymers Pvt Ltd", city: "Vadodara", sector: "polymers"}
+  - {id: PYR-002, name: "Kailash Infra Projects Ltd", city: "Nagpur", sector: "infrastructure"}
+  - {id: PYR-003, name: "Sundaram Weaves & Textiles", city: "Erode", sector: "textiles"}
+  - {id: PYR-004, name: "NovaGrid Energy Solutions Pvt Ltd", city: "Pune", sector: "power equipment"}
+  - {id: PYR-005, name: "Trident Cold Chain LLP", city: "Kochi", sector: "logistics"}
+  - {id: PYR-006, name: "Anand Auto Components Pvt Ltd", city: "Manesar", sector: "auto ancillary"}
+  - {id: PYR-007, name: "Vasanth Traders", city: "Hubballi", sector: "distribution"}
+  - {id: PYR-008, name: "Konark Speciality Chemicals Ltd", city: "Ankleshwar", sector: "chemicals"}
+  - {id: PYR-009, name: "BlueQuartz Analytics Pvt Ltd", city: "Bengaluru", sector: "software"}
+  - {id: PYR-010, name: "Sahyadri Packaging Industries", city: "Sangli", sector: "packaging"}
+  - {id: PYR-011, name: "Deccan Instrumentation Services", city: "Hyderabad", sector: "instrumentation"}
+  - {id: PYR-012, name: "Perumal & Sons Hardware", city: "Madurai", sector: "hardware retail"}
+  - {id: PYR-013, name: "Zenith Facility Care Pvt Ltd", city: "Gurugram", sector: "facilities"}
+  - {id: PYR-014, name: "Ratnadeep Logistics Pvt Ltd", city: "Nashik", sector: "logistics"}
+  - {id: PYR-015, name: "Ashwini Medical Supplies", city: "Indore", sector: "medical devices"}
+  - {id: PYR-016, name: "Greenfold Paper Mills Ltd", city: "Rajahmundry", sector: "paper"}
+  - {id: PYR-017, name: "Sigma Precision Tools Pvt Ltd", city: "Rajkot", sector: "tooling"}
+  - {id: PYR-018, name: "Mahalaxmi Steel Traders", city: "Raipur", sector: "steel trading"}
+  - {id: PYR-019, name: "CloudArc Systems India Pvt Ltd", city: "Chennai", sector: "software"}
+  - {id: PYR-020, name: "Tarapore Marine Exports", city: "Veraval", sector: "seafood export"}
+  - {id: PYR-021, name: "Vindhya Agro Foods Pvt Ltd", city: "Bhopal", sector: "agri processing"}
+  - {id: PYR-022, name: "Everest Modular Interiors", city: "Noida", sector: "interiors"}
+  - {id: PYR-023, name: "Silverline Pharma Distributors", city: "Ahmedabad", sector: "pharma distribution"}
+  - {id: PYR-024, name: "Nandi Transmission Works", city: "Belagavi", sector: "engineering"}
+  - {id: PYR-025, name: "Orbit Print & Media Pvt Ltd", city: "Jaipur", sector: "print"}
+  - {id: PYR-026, name: "Kaveri Hydro Equipment Ltd", city: "Coimbatore", sector: "hydro equipment"}
+  - {id: PYR-027, name: "Prabhat Dairy Ingredients LLP", city: "Baramati", sector: "dairy"}
+  - {id: PYR-028, name: "Terrafirm Geotech Consultants", city: "Bhubaneswar", sector: "consulting"}
+  - {id: PYR-029, name: "Nilgiri Beverage Company Pvt Ltd", city: "Salem", sector: "beverages"}
+  - {id: PYR-030, name: "Sanchit Electricals & Controls", city: "Ludhiana", sector: "electricals"}
+  - {id: PYR-031, name: "Ambika Fasteners Pvt Ltd", city: "Faridabad", sector: "fasteners"}
+  - {id: PYR-032, name: "Coastal Dredging & Marine Ltd", city: "Visakhapatnam", sector: "marine works"}
+  - {id: PYR-033, name: "Ujjwal Solar Integrators", city: "Jodhpur", sector: "solar EPC"}
+  - {id: PYR-034, name: "Hariprasad Rice Mills", city: "Karimnagar", sector: "food processing"}
+  - {id: PYR-035, name: "Vertex Clinical Labs Pvt Ltd", city: "Thane", sector: "diagnostics"}
+  - {id: PYR-036, name: "Bharani Aluminium Extrusions", city: "Hosur", sector: "metals"}
+  - {id: PYR-037, name: "Lotus Hospitality Services LLP", city: "Goa", sector: "hospitality"}
+  - {id: PYR-038, name: "Girnar Mining Equipment Pvt Ltd", city: "Udaipur", sector: "mining"}
+  - {id: PYR-039, name: "Netra Optics & Lenses", city: "Kolkata", sector: "optics"}
+  - {id: PYR-040, name: "Samvardhan Seeds Pvt Ltd", city: "Aurangabad", sector: "agri inputs"}
+
+# The cluster event. Nine invoices across these entities, one parent group,
+# all going quiet inside the same virtual week. See generate.py.
+cluster:
+  parent_group_id: "GRP-SURYODAYA"
+  parent_group_name: "Suryodaya Group"
+  members:
+    - {id: PYR-C01, name: "Suryodaya Textiles Ltd", city: "Surat", sector: "textiles"}
+    - {id: PYR-C02, name: "Suryodaya Retail Ventures Pvt Ltd", city: "Mumbai", sector: "retail"}
+    - {id: PYR-C03, name: "Suryodaya Infra Services Pvt Ltd", city: "Surat", sector: "infrastructure"}
+    - {id: PYR-C04, name: "Suryodaya Agro Processing Ltd", city: "Bharuch", sector: "agri processing"}
+    - {id: PYR-C05, name: "Suryodaya Logistics Pvt Ltd", city: "Vapi", sector: "logistics"}
+    - {id: PYR-C06, name: "Suryodaya Speciality Yarns Ltd", city: "Silvassa", sector: "yarns"}
+
+contacts:
+  - {name: "Latha Venkataraman", role: "Lead - Accounts Payable"}
+  - {name: "Rohit Deshmukh", role: "Executive - Accounts Payable"}
+  - {name: "Prerna Shah", role: "Manager - Finance"}
+  - {name: "Abdul Rahman", role: "AGM - Finance"}
+  - {name: "Sneha Kulkarni", role: "Accounts Officer"}
+  - {name: "Vikram Rathore", role: "Head - Procurement"}
+  - {name: "Meenakshi Iyer", role: "Deputy Manager - Accounts"}
+  - {name: "Gurpreet Singh Bedi", role: "Proprietor"}
+  - {name: "Anselm D'Souza", role: "Controller - Payables"}
+  - {name: "Nikhil Barua", role: "Executive - Vendor Payments"}
+  - {name: "Shalini Pradhan", role: "Assistant Manager - Treasury"}
+  - {name: "T. Muthukrishnan", role: "Senior Accountant"}
+  - {name: "Farhana Qureshi", role: "Manager - Shared Services"}
+  - {name: "Devendra Joshi", role: "Finance Head"}
+  - {name: "Ipsita Mohanty", role: "Executive - Purchase"}
+  - {name: "Kabir Malhotra", role: "Company Secretary"}
+
+# Our own side. The creditor. One entity, so the invoice prefix is stable.
+merchant:
+  legal_name: "Ashwatth Industrial Supplies Pvt Ltd"
+  short_name: "Ashwatth"
+  invoice_prefix: "ASH"

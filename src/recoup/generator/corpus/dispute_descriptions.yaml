@@ -1,0 +1,183 @@
+# Free-text corpus: formal dispute text raised against an invoice.
+#
+# This is the one surface where the *existence* of a grievance is explicit --
+# it is a dispute field, after all. The reasoning task here is different: how
+# substantive is it, is it a genuine commercial objection or a dressed-up
+# stall, and does it warrant a hard stop or a human.
+#
+# A record can carry a dispute description while its ledger state is still
+# AT_RISK. That is deliberate: the merchant hard-stop rule keys off the visible
+# description, not off the hidden ground-truth flag.
+
+kind: DISPUTE_DESCRIPTION
+pool: GENERAL
+
+templates:
+
+  - id: DD-01-quantity
+    signals: [GRN_MISMATCH, QUALITY_COMPLAINT]
+    archetypes: [DISPUTING]
+    weight: 3
+    text: >-
+      {header} {facts} {claim} {status}
+    slots:
+      header:
+        - "Quantity objection raised by the buyer."
+        - "Inward discrepancy logged at the receiving plant."
+        - "Short receipt recorded against the despatch documents."
+        - "Receipt note raised for less than the billed quantity."
+      facts:
+        - "Their stores note records fewer units than our challan against the same vehicle."
+        - "Two of the packages were opened at gate and recorded as damaged."
+        - "Their weighbridge slip differs from ours by more than the agreed tolerance."
+        - "The seal number on the consignment does not match the one on our despatch advice."
+      claim:
+        - "They are withholding the entire bill value, not the value of the shortfall."
+        - "They want a credit note for the difference before anything is released."
+        - "They have asked for a joint inspection before they will book the bill."
+        - "They are treating the whole consignment as unaccepted."
+      status:
+        - "Our despatch section has been asked for the loading records and has not responded."
+        - "Awaiting the transporter's copy to close this."
+        - "Under investigation at our end for three weeks."
+        - "No joint verification has been done yet."
+
+  - id: DD-02-rate
+    signals: [PO_MISMATCH]
+    archetypes: [DISPUTING]
+    weight: 3
+    text: >-
+      {header} {facts} {claim} {status}
+    slots:
+      header:
+        - "Rate objection on the billed value."
+        - "Price variance flagged by the buyer's desk."
+        - "Commercial terms objection."
+        - "Order-to-invoice variance raised."
+      facts:
+        - "We have billed at the revised rate; they are holding to the rate on the original order."
+        - "The escalation clause was applied by us and they say it needed prior written approval."
+        - "Freight has been charged separately though their order says delivered price."
+        - "The discount agreed verbally with our sales team does not appear on the order."
+      claim:
+        - "They will pay only at the order rate and want a credit note for the balance."
+        - "They have withheld the full bill, not just the differential."
+        - "They want a fresh invoice at the lower value before they process anything."
+        - "They say the order has to be amended first and purchase has not moved."
+      status:
+        - "Our sales team has been asked to confirm what was agreed and has not."
+        - "No written record of the revision exists on either side."
+        - "The buyer and our sales head have not spoken in a month."
+        - "Pending a commercial decision at our end."
+
+  - id: DD-03-service-scope
+    signals: [QUALITY_COMPLAINT, PO_MISMATCH]
+    archetypes: [DISPUTING]
+    weight: 2
+    text: >-
+      {header} {facts} {claim} {status}
+    slots:
+      header:
+        - "Scope objection on the services billed."
+        - "Deliverable acceptance withheld."
+        - "Completion certificate not issued."
+        - "Milestone acceptance disputed."
+      facts:
+        - "They say two of the line items were never signed off by their user department."
+        - "The completion certificate covers a smaller scope than the bill does."
+        - "Their site engineer has recorded that the work was not to the drawing."
+        - "The hours billed exceed the estimate that was approved, without a written variation."
+      claim:
+        - "They will not process any part of the bill without a revised completion certificate."
+        - "They want the disputed lines removed and a fresh bill raised."
+        - "They are treating the milestone as incomplete and the bill as premature."
+        - "They have asked for a rectification visit before they will release."
+      status:
+        - "Our project team has not been able to get their engineer on a call."
+        - "The site file is with their consultant and has not come back."
+        - "No rectification has been scheduled."
+        - "Escalated once internally, no movement."
+
+  - id: DD-04-documentation
+    signals: [DOC_MISSING, GST_MISMATCH, ENTITY_MISMATCH]
+    archetypes: [DISPUTING, SILENT]
+    weight: 2
+    text: >-
+      {header} {facts} {claim} {status}
+    slots:
+      header:
+        - "Documentation objection."
+        - "Statutory document defect raised by their tax desk."
+        - "Invoice validity challenged."
+        - "Compliance hold placed by the buyer."
+      facts:
+        - "The registration number the bill was raised on is not the one that received the material."
+        - "The document reference on their portal does not match the copy we sent."
+        - "The original was cancelled and re-issued and both versions are in circulation."
+        - "The address on the bill is the head office though the supply went to their plant."
+      claim:
+        - "They will not book the bill until it is raised correctly on the receiving entity."
+        - "They have asked us to withdraw the document and issue a fresh one."
+        - "They are holding the full value pending confirmation of our filing."
+        - "Their auditors have instructed them not to release against an unmatched document."
+      status:
+        - "Our tax team has confirmed the filing but not in a form they will accept."
+        - "The correction requires a fresh document and a reversal at our end."
+        - "Pending with our compliance desk for two weeks."
+        - "No agreement yet on which entity the bill should sit against."
+
+  - id: DD-05-duplicate
+    signals: [DUPLICATE_CLAIM, PARTIAL_CONFUSION]
+    archetypes: [DISPUTING, PAID_UNRECONCILED]
+    weight: 2
+    text: >-
+      {header} {facts} {claim} {status}
+    slots:
+      header:
+        - "Duplicate booking alleged by the buyer."
+        - "Repeat billing objection."
+        - "Double-claim flagged at their end."
+        - "Overlap with an earlier bill asserted."
+      facts:
+        - "They say two of our bills carry the same delivery reference."
+        - "The same work appears on this bill and on one raised the previous month."
+        - "Their system rejected the entry as a repeat of an existing document."
+        - "The value matches an earlier bill of ours to the rupee."
+      claim:
+        - "They want one of the two withdrawn in writing before they release either."
+        - "They have blocked both bills until we confirm which one stands."
+        - "They are treating the later one as an error and will not act on it."
+        - "They want a written confirmation that the earlier one was not paid."
+      status:
+        - "Our billing section has not yet reconciled the two."
+        - "Both documents are on our books and neither has been reversed."
+        - "Under check at our end."
+        - "Awaiting a statement from us that they can agree."
+
+  - id: DD-06-recovery-claim
+    signals: [SETTLEMENT_REQUEST, QUALITY_COMPLAINT]
+    archetypes: [DISPUTING, DISTRESSED]
+    weight: 1
+    text: >-
+      {header} {facts} {claim} {status}
+    slots:
+      header:
+        - "Counter-claim raised against the bill."
+        - "Recovery asserted by the buyer."
+        - "Set-off claimed against an earlier supply."
+        - "Damages claimed and adjusted."
+      facts:
+        - "They say an earlier consignment caused a line stoppage at their plant."
+        - "They have booked a recovery for rework done at their end on our material."
+        - "A penalty for late delivery has been computed by their purchase department."
+        - "They are claiming freight and demurrage that they say we agreed to bear."
+      claim:
+        - "They intend to adjust the claim against this bill rather than settle it separately."
+        - "They will release only the balance after their recovery."
+        - "They want us to accept the deduction in writing before anything moves."
+        - "They have withheld the full value pending our acceptance of the claim."
+      status:
+        - "The claim has not been quantified in any document we have seen."
+        - "Our commercial team disputes the basis but has not written back."
+        - "No supporting evidence has been shared with us."
+        - "This has been open since before the current bill was raised."
