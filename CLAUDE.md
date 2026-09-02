@@ -2,6 +2,25 @@
 
 Razorpay Buildathon, Track 03. Solo, ~7 days. Read `docs/IMPLEMENTATION-PLAN.md` before doing anything.
 
+## Start here (cold session)
+
+**Phase 0 is complete and its gate is met.** Repo is committed locally on `main` (4 commits, clean tree); Razorpay test credentials are verified; `.env` exists and is gitignored. **Phase 1 is next.**
+
+Read in this order:
+
+1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, §2 the contracts to freeze, §3 Phase 1.
+2. `docs/BUILD-LOG.md` — the Phase 0 entry: what exists and why.
+3. `docs/ISSUES.md` — 13 findings. ISS-012 is a live Phase 4 risk.
+4. This file, below, for the invariants.
+
+**Phase 1 in one line:** domain contracts, seeded generator (120+ records), the free-text corpus, virtual clock, ledger state machine, and the audit replay test — **with no LLM anywhere in it**.
+
+The highest-leverage task in Phase 1 is the **free-text corpus**, not the code. Three focused hours, 25–30 templates with slot variation. If the records carry only amounts and dates, the LLM has nothing to read that a regex couldn't parse, and the whole project collapses into a rules engine. Do not let this get squeezed.
+
+Setup: `uv sync --extra dev`. Check: `uv run ruff check . && uv run mypy && uv run pytest`. The scaffold tests fail loudly if a subpackage is renamed — that is deliberate, five gates reference those paths by name.
+
+**Not done, deliberately:** the public GitHub push. It is the user's call. Nothing in Phases 1–6 depends on it; the submission does.
+
 ## The rule that outranks everything
 
 **Protect the Phase 2 gate.** At the end of Phase 2 there is a complete, submittable system with no LLM in it, tagged `v0.1-submittable`. Everything after that is upside. If a change threatens that gate, the change loses.
