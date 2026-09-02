@@ -62,6 +62,7 @@ from recoup.domain.interventions import spec
 from recoup.domain.models import (
     Invoice,
     LLMProposal,
+    OutcomeRecord,
     PolicyVerdict,
     Tick,
     canonical_json,
@@ -250,7 +251,23 @@ def run_batch(
 
         clock.advance()
 
-    result.written_off = ledger.finalise(horizon)
+    # Finalisation. Every write-off goes through the same outcome path as
+    # everything else, so it lands in the log as a row rather than as an
+    # implied side effect. Replay then needs no special case, and no knowledge
+    # of the horizon: the rows say what happened and when.
+    for record in ledger.awaiting_write_off():
+        _apply_outcome(
+            ledger,
+            log,
+            record,
+            OutcomeRecord(
+                kind=OutcomeKind.WRITTEN_OFF,
+                detail="automation exhausted and the run closed with the bill open",
+            ),
+            horizon,
+        )
+        result.written_off += 1
+
     return result
 
 

@@ -164,15 +164,6 @@ def _apply_outcome(ledger: Ledger, record: Invoice, row: AuditRow, result: Repla
     ledger.record_outcome(record, row.outcome, row.tick)
 
 
-def finalise_replay(result: ReplayResult, tick: int) -> None:
-    """Apply the same end-of-run write-off the live ledger applies.
-
-    A run that ends with records in EXHAUSTED writes them off at finalisation,
-    and a replay that skips this step diverges on every one of them.
-    """
-    result.ledger.finalise(tick)
-
-
 def compare(live: list[Invoice], replayed: list[Invoice]) -> list[Difference]:
     """Diff two record sets field by field over `COMPARED_FIELDS`.
 
@@ -230,8 +221,4 @@ def reconstruct(invoice_id: str, records: list[Invoice], rows: list[AuditRow]) -
     """
     mine = [row for row in rows if row.record_id == invoice_id]
     result = replay(records, mine, verify=False)
-    # Finalise, or a record the run left EXHAUSTED comes back as EXHAUSTED while
-    # the ledger has since written it off. The horizon is recovered from the
-    # rows themselves, since a single-record view has no other way to know it.
-    finalise_replay(result, max((row.tick for row in rows), default=0) + 1)
     return result.ledger.get(invoice_id).state

@@ -373,17 +373,20 @@ class Ledger:
         if due_tick is not None and RecordState.PROMISED in ALLOWED_TRANSITIONS[record.state]:
             self.transition(record, RecordState.PROMISED, tick)
 
-    def finalise(self, tick: Tick) -> int:
-        """Close the run: everything still EXHAUSTED is written off.
+    def awaiting_write_off(self) -> list[Invoice]:
+        """Records the end of the run should write off: everything still EXHAUSTED.
 
-        Returns the number of records written off. Nothing else moves; records
-        left in AT_RISK, CONTACTED, PROMISED, DISPUTED or HUMAN_QUEUE stay
-        there and are reported as unresolved, because pretending an open
-        receivable is settled is the one thing the metric table must not do.
+        Returns them rather than moving them. The write-off is a state change
+        like any other and must arrive with an audit row attached, so the
+        RUNNER applies it through the same outcome path as everything else --
+        see `runner.batch`. An earlier version moved them here and logged
+        nothing, which left `audit.replay` unable to reconstruct the closing
+        position from the log and quietly reproducing it from a copy of this
+        logic instead. A replay that re-derives the answer is not a check.
+
+        Nothing else moves. Records left in AT_RISK, CONTACTED, PROMISED,
+        DISPUTED or HUMAN_QUEUE stay there and are reported as unresolved,
+        because pretending an open receivable is settled is the one thing the
+        metric table must not do.
         """
-        written_off = 0
-        for record in self._records.values():
-            if record.state is RecordState.EXHAUSTED:
-                self.transition(record, RecordState.WRITTEN_OFF, tick)
-                written_off += 1
-        return written_off
+        return [r for r in self._records.values() if r.state is RecordState.EXHAUSTED]

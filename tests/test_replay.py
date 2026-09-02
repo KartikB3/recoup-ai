@@ -27,7 +27,7 @@ from recoup.audit.log import (
     row_hash,
     verify_chain,
 )
-from recoup.audit.replay import compare, finalise_replay, reconstruct, replay
+from recoup.audit.replay import compare, reconstruct, replay
 from recoup.baseline.naive_chaser import NaiveChaser
 from recoup.domain.enums import Arm, RowKind
 from recoup.generator.generate import generate_batch
@@ -145,7 +145,6 @@ def test_replay_reproduces_the_run_exactly(result: RunResult) -> None:
     sufficient rather than that two references point at one list.
     """
     rebuilt = replay(generate_batch(42).records, result.log.rows)
-    finalise_replay(rebuilt, result.horizon)
 
     differences = compare(result.ledger.records, rebuilt.ledger.records)
     assert not differences, differences[:10]
@@ -156,7 +155,6 @@ def test_replay_reproduces_the_run_exactly(result: RunResult) -> None:
 def test_replay_reproduces_the_money_and_the_contacts(result: RunResult) -> None:
     """State alone is not enough; these are what the metric table reads."""
     rebuilt = replay(generate_batch(42).records, result.log.rows)
-    finalise_replay(rebuilt, result.horizon)
 
     assert sum(r.recovered_paise for r in rebuilt.ledger.records) == result.recovered_paise
     assert rebuilt.contacts == result.contacts
@@ -173,11 +171,37 @@ def test_replay_detects_a_divergence_when_one_is_introduced(result: RunResult) -
     would still pass.
     """
     rebuilt = replay(generate_batch(42).records, result.log.rows)
-    finalise_replay(rebuilt, result.horizon)
     rebuilt.ledger.records[0].recovered_paise += 1
     differences = compare(result.ledger.records, rebuilt.ledger.records)
     assert differences
     assert differences[0].field_name == "recovered_paise"
+
+
+def test_write_offs_are_rows_in_the_log_not_an_implied_side_effect(result: RunResult) -> None:
+    """Replay must reconstruct the closing position with no finalisation step.
+
+    An earlier version wrote records off inside `Ledger.finalise`, outside the
+    log entirely, and replay reproduced them only by running a copy of the same
+    logic afterwards. That passed, and proved nothing: a replay that re-derives
+    the answer is not a check. It also failed the moment the horizon had to be
+    guessed from the rows -- `recoup replay` inferred 101 where the run had
+    used 112, and every write-off came back with the wrong `resolved_tick`.
+    """
+    from recoup.domain.enums import OutcomeKind, RecordState
+
+    rows = result.log.rows
+    write_offs = [
+        r for r in rows if r.outcome is not None and r.outcome.kind is OutcomeKind.WRITTEN_OFF
+    ]
+    live = [r for r in result.ledger.records if r.state is RecordState.WRITTEN_OFF]
+    assert len(write_offs) == len(live) == result.written_off
+
+    # No finalisation call anywhere in this test: the rows carry it.
+    rebuilt = replay(generate_batch(42).records, rows)
+    assert not compare(result.ledger.records, rebuilt.ledger.records)
+    for record in rebuilt.ledger.records:
+        if record.state is RecordState.WRITTEN_OFF:
+            assert record.resolved_tick == result.horizon
 
 
 def test_reconstruct_one_invoice_from_the_log_alone(result: RunResult) -> None:
@@ -243,7 +267,6 @@ def test_write_run_produces_a_replayable_artifact(tmp_path: Path) -> None:
 
     rows = read_log(out / "audit.jsonl")
     rebuilt = replay(load_batch(out / "batch.json").records, rows)
-    finalise_replay(rebuilt, result.horizon)
     stored = [
         Invoice.model_validate(row)
         for row in json.loads((out / "final.json").read_text(encoding="utf-8"))

@@ -105,7 +105,7 @@ def replay(
     the log is wrong.
     """
     from recoup.audit.log import read_log
-    from recoup.audit.replay import compare, finalise_replay
+    from recoup.audit.replay import compare
     from recoup.audit.replay import replay as replay_rows
     from recoup.domain.models import Invoice
     from recoup.generator.generate import load_batch
@@ -120,11 +120,11 @@ def replay(
             raise typer.Exit(code=1)
 
     rows = read_log(log_path)
-    horizon = max((row.tick for row in rows), default=0) + 1
 
-    # Reconstruct from the OPENING batch and the log, and nothing else.
+    # Reconstruct from the OPENING batch and the log, and nothing else. There
+    # is no finalisation step: the run's write-offs are rows in the log like
+    # everything else, so nothing here needs to know the horizon.
     result = replay_rows(load_batch(batch_path).records, rows)
-    finalise_replay(result, horizon)
 
     if invoice_id:
         record = result.ledger.get(invoice_id)

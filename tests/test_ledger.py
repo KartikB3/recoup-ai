@@ -306,7 +306,7 @@ def test_a_vetoed_action_costs_nothing_but_a_review_slot() -> None:
     assert record.next_review_tick > 6
 
 
-def test_finalise_writes_off_only_exhausted_records() -> None:
+def test_awaiting_write_off_selects_only_exhausted_records() -> None:
     """Pretending an open receivable is settled is the one thing metrics must not do."""
     ledger = Ledger(generate_batch(42).records[:6])
     records = ledger.records
@@ -314,9 +314,12 @@ def test_finalise_writes_off_only_exhausted_records() -> None:
     ledger.transition(records[1], RecordState.DISPUTED, 10)
     ledger.transition(records[2], RecordState.HUMAN_QUEUE, 10)
 
-    written_off = ledger.finalise(112)
-    assert written_off == 1
-    assert records[0].state is RecordState.WRITTEN_OFF
+    awaiting = ledger.awaiting_write_off()
+    assert [r.invoice_id for r in awaiting] == [records[0].invoice_id]
+
+    # Nothing has moved yet: the write-off is the RUNNER's to apply, so that it
+    # arrives with an audit row rather than as an implied side effect.
+    assert records[0].state is RecordState.EXHAUSTED
     assert records[1].state is RecordState.DISPUTED
     assert records[2].state is RecordState.HUMAN_QUEUE
     assert records[3].state is RecordState.AT_RISK
