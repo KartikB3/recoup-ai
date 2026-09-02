@@ -57,6 +57,9 @@ recoup/
 ├── webhook/app.py               # FastAPI, signature verification, reconcile → ledger
 ├── dashboard/                   # app.py + views/{summary,timeline,audit}.py
 ├── data/batches/                # committed seeded batches (JSON)
+├── data/llm_cache/              # committed reasoner cache, keyed by input hash.
+│                                #   COMMITTED ON PURPOSE: this is what makes the
+│                                #   demo work with the API down.
 ├── runs/                        # per-run audit logs (JSONL) + metrics (JSON)
 └── tests/
 ```
@@ -204,8 +207,8 @@ Estimates assume solo, focused days. "Gate" = do not proceed until true.
 |---|---|
 | `reasoner/schemas.py` | Pydantic → JSON Schema → `output_config: {format: ...}`. Read back with `client.messages.parse()`. |
 | `reasoner/prompts.py` | System prompt carries the intervention space, the policy rules (so the model proposes *plausible* actions), and the "you never output a rupee amount or a date" constraint. **Put the frozen system prompt first and cache it** — prefix caching is what makes 120 records × 2 arms affordable. |
-| `reasoner/cache.py` | Cache by SHA-256 of the canonical input snapshot. Disk-backed, **committed to the repo**. This makes runs reproducible *and* makes the demo work with the API down. |
-| `reasoner/fallback.py` | Deterministic path for when the API errors, times out, or refuses. **Assume the API is down while you record the video.** Test it by setting a bogus key and running the full batch — it must complete. |
+| `reasoner/cache.py` | Cache by SHA-256 of the canonical input snapshot. Disk-backed at `data/llm_cache/`, **committed to the repo**. This makes runs reproducible *and* makes the demo work with the API down. Do not let this become an untracked directory — the offline gate silently depends on it. |
+| `reasoner/fallback.py` | Deterministic path for when the API errors, times out, or refuses. **Assume the API is down while you record the video.** Branch on a falsy-or-missing key, not on key absence. CI runs the suite with `ANTHROPIC_API_KEY: ""` so this stays true. |
 | `reasoner/batch_insight.py` | The §7b call: one prompt over the aggregate, run at effort `high`. Detects the parent-group cluster and returns a suppression recommendation which the **policy engine still has to approve**. |
 | Re-run and compare | Agent vs baseline on seed 42. If the agent does not beat the baseline, that is a *finding* — investigate before adding features. Log it in `ISSUES.md` either way. |
 
@@ -213,7 +216,9 @@ Estimates assume solo, focused days. "Gate" = do not proceed until true.
 
 **Load the `claude-api` skill before writing any of this code.** Do not write SDK calls from memory; several API shapes changed in 2025–26.
 
-**Gate:** the full batch runs with `ANTHROPIC_API_KEY` unset and completes via the fallback path. Cache hit rate is 100% on a second identical run.
+**Gate:** the full batch runs with `ANTHROPIC_API_KEY` **empty or unset** and completes via the fallback path. Cache hit rate is 100% on a second identical run.
+
+> Empty and unset are different conditions and `fallback.py` must branch on **falsy-or-missing**, not on `"ANTHROPIC_API_KEY" not in os.environ`. An empty value still outranks every other credential source rather than falling through to a profile, which makes it the stricter test — so that is the one CI runs.
 
 **Model/effort for building it:** `Opus 5`, effort `xhigh`.
 

@@ -59,18 +59,30 @@ def test_planned_module_imports(module: str) -> None:
 
 
 def test_every_module_has_a_docstring() -> None:
-    """A stub without a docstring is an empty file nobody can navigate."""
+    """A stub without a docstring is an empty file nobody can navigate.
+
+    Covers package __init__ files as well as leaf modules - an undocumented
+    package is exactly the one a later phase fills in blind.
+    """
+    packages = [f"recoup.{m.name}" for m in pkgutil.iter_modules(recoup.__path__) if m.ispkg] + [
+        "recoup.policy.rules"
+    ]
     undocumented = [
         name
-        for name in PLANNED_MODULES
+        for name in PLANNED_MODULES + packages
         if not (importlib.import_module(name).__doc__ or "").strip()
     ]
     assert not undocumented, f"missing docstrings: {undocumented}"
 
 
-def test_no_unexpected_top_level_subpackages() -> None:
-    """The layout is frozen in Phase 0. Later phases fill files in, not move them."""
-    expected = {
+def test_planned_subpackages_still_exist() -> None:
+    """The layout is frozen in Phase 0: later phases ADD, they do not move or rename.
+
+    Deliberately a subset check, not equality. A phase that legitimately adds a
+    subpackage should not fail CI at 11pm on Day 5; a phase that renames one
+    should fail immediately, because five gates reference these paths by name.
+    """
+    required = {
         "domain",
         "generator",
         "ledger",
@@ -83,9 +95,7 @@ def test_no_unexpected_top_level_subpackages() -> None:
         "runner",
     }
     found = {m.name for m in pkgutil.iter_modules(recoup.__path__) if m.ispkg}
-    assert found == expected, (
-        f"layout drift: unexpected={found - expected}, missing={expected - found}"
-    )
+    assert required <= found, f"layout drift - subpackages missing or renamed: {required - found}"
 
 
 @pytest.mark.parametrize("command", PLANNED_COMMANDS)
