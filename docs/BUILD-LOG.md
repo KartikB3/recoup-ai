@@ -11,7 +11,7 @@ Append-only. One entry per phase close. Newest at the bottom.
 
 | Phase | Name | State | Gate met | Commit / tag |
 |---|---|---|---|---|
-| 0 | Scaffold & long-lead items | 🟡 in progress | ⚠️ 2 items are yours | `8233ff6` |
+| 0 | Scaffold & long-lead items | ✅ done | ✅ met | `8233ff6`..`702f213` |
 | 1 | Generator, clock, ledger (zero AI) | ⬜ not started | — | — |
 | 2 | Policy engine + baseline + metrics | ⬜ not started | — | — |
 | 3 | LLM reasoner layer | ⬜ not started | — | — |
@@ -51,7 +51,7 @@ Everything. No code written.
 
 **Date:** 2026-09-02
 **Model/effort used:** Opus 5
-**Gate:** ⚠️ **not met** — the code half is done; two items require account access only you have (a third, the Support email, was dropped). See "Carried forward".
+**Gate:** ✅ **met** — repo initialised and committed; `uv run recoup check-razorpay` created a real test-mode Payment Link (`plink_TXAFGZfOooV75R`), confirming credentials end to end. The Support email was dropped by decision, not left undone (ISS-001).
 **Commit:** `8233ff6`
 
 **What was built**
@@ -89,11 +89,25 @@ None structural. Two additions the plan did not call for: the CI workflow, and i
 - 36 tests, 0.52s
 - ruff clean, `ruff format` clean, mypy strict clean across 39 source files
 
-**Carried forward — these three are yours, not mine**
+**Gate evidence**
 
-1. ~~Email Razorpay Support to raise the 30-link test-mode cap.~~ **Dropped 2026-09-02.** The cap is load-bearing for the pitch and 30 is comfortable under the Phase 4 link budget. Reasoning recorded in ISS-001. This removes the only waiting-on-someone-else thread in the build.
-2. **Generate Razorpay test-mode API keys**, put them in `.env`, then run `uv run recoup check-razorpay`. That closes the smoke-test half of the gate.
-3. **Create the public GitHub repo and push.** Not done — pushing publicly is your call, and `gh` is authenticated and ready when you want it.
+| Check | Result |
+|---|---|
+| `git log` | 4 commits on `main`, working tree clean |
+| `ruff check` / `ruff format --check` | clean |
+| `mypy --strict` | clean, 39 source files |
+| `pytest` | 36 passed |
+| `recoup check-razorpay` | **live test-mode Payment Link created**, `plink_TXAFGZfOooV75R` |
+| `.env` tracked? | no — gitignored and confirmed absent from `git ls-files` |
+| `chat_history.txt` tracked? | no — gitignored |
+
+**Link budget consumed:** 1 of 30 (ISS-001). ~11 more projected across the week; see the Phase 4 budget table.
+
+**Carried forward**
+
+1. ~~Email Razorpay Support to raise the 30-link cap.~~ **Dropped 2026-09-02** — the cap is load-bearing for the pitch and 30 is comfortable under the Phase 4 budget. Reasoning in ISS-001.
+2. ~~Razorpay credentials smoke test.~~ **Done** — see gate evidence above.
+3. **Create the public GitHub repo and push.** Deliberately not done: the repo is committed locally only, and publishing is the user's call. `gh` is authenticated and ready. Nothing in Phases 1–6 depends on this; the submission does.
 
 ---
 

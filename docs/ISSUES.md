@@ -42,6 +42,8 @@ The cap stopped being a limitation and became a feature of the agent's decision 
 
 **Unknown:** whether the cap is lifetime or resets periodically. Not established either way, and it does not change the plan under either reading. If a reset is observed, log it here.
 
+**Consumed so far:** 1 of 30 — the Phase 0 smoke test (`plink_TXAFGZfOooV75R`, 2026-09-02). Keep this line current; it is the only running total.
+
 **Status:** ACCEPTED — the constraint stands, deliberately, and is designed around.
 
 ---
