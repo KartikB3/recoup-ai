@@ -285,7 +285,31 @@ These are 🔵. None of them may reach the video unverified. The `RuleSource.ver
 
 ---
 
+### ISS-022 · 🟠 The committed run artifact did not match the batch hash the docs publish
+
+**Phase:** 1
+**What happened:** The batch format had acquired two serialisers without anyone deciding it should. `generator.write_batch` uses `serialise()` — indented, human-readable — and its SHA-256 is published in `docs/SEED-DISTRIBUTION.md` as *the* hash of seed 42. `runner.write_run` independently re-dumped the same object through `canonical_json`, producing compact JSON: valid, round-trippable, replayable, and **98,270 bytes shorter with a completely different hash**.
+**Why it matters:** Nothing was broken in any executable sense. `load_batch` reads both, replay reconstructed both runs from either, and all 164 tests passed. The damage was purely to the claim: a reader who hashed `runs/phase1-baseline/batch.json` and compared it against the figure printed in the docs would have got a mismatch on the project's headline reproducibility statement, and would have been entirely right to distrust everything downstream of it. The whole point of publishing a hash is that someone checks it.
+**Why the tests missed it:** every determinism test compared the generator against *itself* across processes, and every replay test compared a reconstruction against the run it came from. Neither ever compared the two artifacts to each other, because nothing in the design said they were supposed to be the same file — that assumption lived only in the documentation.
+**What we tried:** Nothing else. Once stated, there is one right answer.
+**Design consequence:** `write_run` now calls `serialise(batch)`. One serialiser for the batch format, the same discipline `_legal` imposes on state transitions and that `Ledger.transition` imposes on `.state`. `tests/test_replay.py::test_write_run_produces_a_replayable_artifact` asserts the stored file is byte-identical to `serialise(generate_batch(42))`, so the two can never drift apart again silently. All three committed batch files now hash to `c903d917…88dd6f`.
+**The general lesson:** a fact that is stated only in prose is not enforced. Every claim the docs make about a byte-level property needs a test that would fail if the claim stopped being true — otherwise the documentation is the only thing holding it up, and documentation does not run in CI.
+**Status:** RESOLVED.
+
+---
+
+### ISS-023 · 🟢 Both baseline arms were stamped `BASELINE`, making a three-arm metric table impossible
+
+**Phase:** 1
+**What happened:** `Arm` had exactly two members, `AGENT` and `BASELINE`, and `AlwaysWait` — the do-nothing control added during Phase 1 — was stamped `BASELINE` for want of anywhere better. Both committed run artifacts therefore carried `"arm": "BASELINE"` on all 2,659 rows, and nothing inside a log distinguished the control from the naive chaser.
+**Why it matters:** Not a correctness bug today; `verify_chain` requires one run and one arm per file, so the two never mixed. It was a Phase 2 trap. The metric table has to report three arms — the control recovers **49.3%** of this book with zero contacts, and omitting that floor lets both other arms take credit for money that was arriving regardless. Phase 2 would have had to key on `run_id` string conventions to tell them apart, which is the kind of thing that works until someone renames a run.
+**Design consequence:** `Arm.CONTROL` added, with the reasoning for its existence written into the enum docstring rather than left as folklore. Caught in review before Phase 2 depended on it, which is the cheapest possible moment.
+**Status:** RESOLVED.
+
+---
+
 *Append below as they happen. Do not wait for phase close.*
+
 
 
 ---

@@ -69,6 +69,7 @@ from recoup.domain.models import (
 )
 from recoup.executor.base import Executor
 from recoup.executor.simulated import SimulatedExecutor
+from recoup.generator.generate import Batch, serialise
 from recoup.ledger.adjudicator import Adjudicator
 from recoup.ledger.clock import (
     DEFAULT_HORIZON,
@@ -180,7 +181,7 @@ class AlwaysWait:
     """
 
     name = "always-wait"
-    arm = Arm.BASELINE
+    arm = Arm.CONTROL
 
     def propose(self, snapshot: dict[str, Any], tick: Tick) -> Proposal:
         """WAIT, unconditionally."""
@@ -437,7 +438,7 @@ def _apply_outcome(
     )
 
 
-def write_run(result: RunResult, batch: Any, out_dir: Path) -> Path:
+def write_run(result: RunResult, batch: Batch, out_dir: Path) -> Path:
     """Persist a run so `recoup replay` has something real to work on.
 
     Four files, and the split between them is the point:
@@ -452,9 +453,15 @@ def write_run(result: RunResult, batch: Any, out_dir: Path) -> Path:
     itself, which proves the reader and the writer agree and nothing more.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "batch.json").write_text(
-        canonical_json(batch.model_dump(mode="json")), encoding="utf-8", newline=""
-    )
+    # `serialise`, NOT a fresh `canonical_json` dump. The generator publishes a
+    # SHA-256 of its own output (docs/SEED-DISTRIBUTION.md) and this file has to
+    # be that same batch, byte for byte. Re-dumping produced valid JSON that
+    # round-tripped fine and hashed differently -- so a reader who hashed the
+    # run artifact and compared it to the published figure would have found a
+    # mismatch on the project's headline reproducibility claim. One serialiser
+    # for the batch format, the same way `_legal` is the one place transitions
+    # are decided.
+    (out_dir / "batch.json").write_text(serialise(batch), encoding="utf-8", newline="")
     result.log.write(out_dir / "audit.jsonl")
     (out_dir / "final.json").write_text(
         canonical_json([r.model_dump(mode="json") for r in result.ledger.records]),

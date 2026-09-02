@@ -61,14 +61,28 @@ def result(request: pytest.FixtureRequest) -> RunResult:
 # ---------------------------------------------------------------------------
 
 
-def test_the_log_is_append_only_by_construction() -> None:
-    """INVARIANT 5. `AuditLog` exposes no writer other than `append`."""
-    writers = {
+#: Public `AuditLog` methods that do not mutate the row sequence. A new helper
+#: must be classified here deliberately, which is the point: the equality check
+#: below is a tripwire, and the thing it protects is that `append` stays the
+#: only way a row comes into existence.
+NON_MUTATING_LOG_METHODS: frozenset[str] = frozenset({"write"})
+
+
+def test_the_log_has_no_writer_other_than_append() -> None:
+    """INVARIANT 5. Nothing but `append` can change the row sequence.
+
+    `write` flushes to disk and adds nothing. Everything else on the public
+    surface must be a read, and a future `rows_for` or `by_tick` belongs in
+    `NON_MUTATING_LOG_METHODS` rather than quietly widening this assertion --
+    an `update` or `amend` slipping in unnoticed is exactly the failure the
+    invariant exists to prevent.
+    """
+    public = {
         name
         for name in dir(AuditLog)
         if not name.startswith("_") and callable(getattr(AuditLog, name, None))
     }
-    assert writers == {"append", "write"}, writers
+    assert public - NON_MUTATING_LOG_METHODS == {"append"}, public
 
 
 def test_rows_property_hands_back_a_copy() -> None:
@@ -261,6 +275,14 @@ def test_write_run_produces_a_replayable_artifact(tmp_path: Path) -> None:
 
     for name in ("batch.json", "audit.jsonl", "final.json", "summary.json"):
         assert (out / name).exists(), name
+
+    # The stored opening batch must be the generator's own bytes, not a second
+    # serialisation of the same object. docs/SEED-DISTRIBUTION.md publishes a
+    # SHA-256 of `serialise()` output as *the* batch hash, and a reader who
+    # hashes this file and compares is entitled to a match.
+    from recoup.generator.generate import serialise
+
+    assert (out / "batch.json").read_text(encoding="utf-8") == serialise(generate_batch(42))
 
     from recoup.domain.models import Invoice
     from recoup.generator.generate import load_batch

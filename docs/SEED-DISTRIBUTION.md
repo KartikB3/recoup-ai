@@ -7,6 +7,10 @@ reproducible by anyone and auditable by a judge.
 **Output:** `data/batches/seed-42-n126.json`
 **SHA-256:** `c903d91724d1c4566cb5c0a67ecf308eb6a0636772fe4a744a6b3f423188dd6f`
 
+The same bytes appear in `runs/*/batch.json`, and a test asserts it -- the two
+were briefly written by different serialisers, which cost nothing functionally
+and would have failed exactly the check a reader is most likely to run. ISS-022.
+
 Verified byte-identical across three separate interpreters under
 `PYTHONHASHSEED` 0, 1 and 12345. That specific check exists because
 `Invoice.flags` is a `set` and set iteration order varies with the hash seed; a

@@ -162,6 +162,8 @@ None structural. Two additions the plan did not call for: the CI workflow, and i
 | Replay strategy | Re-apply rows through the **ledger's own writers** | Re-deriving state through the pure functions would compare `RecordState` and nothing else, while `recovered_paise` — which the metric table actually reads — diverged silently. |
 | Response delay | 2 ticks (12 virtual hours) | Nobody replies in the same instant they are written to. |
 | `types-PyYAML` vs. a mypy override | Install the stubs | PyYAML publishes real ones, unlike `razorpay`. See ISS-020. |
+| One serialiser for the batch format | `write_run` calls `serialise`, not a fresh dump | The run artifact has to be the same bytes the generator published a hash of. Two serialisers is how a reproducibility claim quietly stops being true. ISS-022. |
+| A third `Arm` | `Arm.CONTROL` | The do-nothing control was stamped `BASELINE`, so nothing in a log distinguished it. Phase 2 reports three arms. ISS-023. |
 
 ---
 

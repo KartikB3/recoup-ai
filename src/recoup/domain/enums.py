@@ -101,10 +101,22 @@ class Channel(StrEnum):
 
 
 class Arm(StrEnum):
-    """Which strategy produced a row. Both arms share the seed and the world."""
+    """Which strategy produced a row. All arms share the seed and the world.
+
+    CONTROL is the do-nothing floor: it never contacts anybody, and on this book
+    it still recovers roughly half the value, because most payers settle on
+    their own cycle. It is not a joke entry. Reporting AGENT against BASELINE
+    alone would let both claim credit for money that was going to arrive
+    regardless, and the whole argument of this project is about which contacts
+    were worth making.
+
+    The arm is stamped on every audit row, so a metric layer can separate three
+    runs without keying on `run_id` conventions.
+    """
 
     AGENT = "AGENT"
     BASELINE = "BASELINE"
+    CONTROL = "CONTROL"
 
 
 class RecordSource(StrEnum):

@@ -1,1 +1,1 @@
-{"api_units":0,"arm":"BASELINE","audit_rows":1506,"billed_paise":2529740640,"contacts":0,"decisions":1321,"paid_records":54,"proposer_records":126,"recovered_paise":1246014875,"run_id":"phase1-control","states":{"AT_RISK":72,"PAID":54},"vetoed":0,"written_off":0}
+{"api_units":0,"arm":"CONTROL","audit_rows":1506,"billed_paise":2529740640,"contacts":0,"decisions":1321,"paid_records":54,"proposer_records":126,"recovered_paise":1246014875,"run_id":"phase1-control","states":{"AT_RISK":72,"PAID":54},"vetoed":0,"written_off":0}
