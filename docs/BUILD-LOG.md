@@ -11,7 +11,7 @@ Append-only. One entry per phase close. Newest at the bottom.
 
 | Phase | Name | State | Gate met | Commit / tag |
 |---|---|---|---|---|
-| 0 | Scaffold & long-lead items | 🟡 in progress | ⚠️ 2 of 3 items are yours | `8233ff6` |
+| 0 | Scaffold & long-lead items | 🟡 in progress | ⚠️ 2 items are yours | `8233ff6` |
 | 1 | Generator, clock, ledger (zero AI) | ⬜ not started | — | — |
 | 2 | Policy engine + baseline + metrics | ⬜ not started | — | — |
 | 3 | LLM reasoner layer | ⬜ not started | — | — |
@@ -51,7 +51,7 @@ Everything. No code written.
 
 **Date:** 2026-09-02
 **Model/effort used:** Opus 5
-**Gate:** ⚠️ **not met** — the code half is done; three items require account access only you have. See "Carried forward".
+**Gate:** ⚠️ **not met** — the code half is done; two items require account access only you have (a third, the Support email, was dropped). See "Carried forward".
 **Commit:** `8233ff6`
 
 **What was built**
@@ -91,7 +91,7 @@ None structural. Two additions the plan did not call for: the CI workflow, and i
 
 **Carried forward — these three are yours, not mine**
 
-1. **Email Razorpay Support to raise the 30-link test-mode cap.** Highest-latency item in the whole build; nothing else blocks on it. Log the outcome in `ISSUES.md` ISS-001 either way.
+1. ~~Email Razorpay Support to raise the 30-link test-mode cap.~~ **Dropped 2026-09-02.** The cap is load-bearing for the pitch and 30 is comfortable under the Phase 4 link budget. Reasoning recorded in ISS-001. This removes the only waiting-on-someone-else thread in the build.
 2. **Generate Razorpay test-mode API keys**, put them in `.env`, then run `uv run recoup check-razorpay`. That closes the smoke-test half of the gate.
 3. **Create the public GitHub repo and push.** Not done — pushing publicly is your call, and `gh` is authenticated and ready when you want it.
 

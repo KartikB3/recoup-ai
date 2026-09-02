@@ -38,8 +38,11 @@ These five were discovered before a line of code was written, through Razorpay d
 
 The cap stopped being a limitation and became a feature of the agent's decision problem.
 
-**Action:** email Razorpay Support in Phase 0 asking for a raise. If granted, the live slice grows; if not, nothing changes. Record the outcome here.
-**Status:** OPEN — support email not yet sent.
+**Action — revised, and the reasoning is the interesting part:** the original plan was to email Razorpay Support in Phase 0 asking for a raise. **Decided against.** Three reasons: the cap is load-bearing for the pitch, since scarcity is precisely what the agent allocates and a raised cap would weaken that; the demo needs the loop to close *once*, not at volume, because the allocation decision across the other 119 invoices is visible in the audit log without creating a single extra link; and the actual risk was never insufficient quota but burning it on debugging, which mock-first development in Phase 4 solves better than a bigger number would. Projected burn is ~10–12 links across the week against a budget of 30.
+
+**Unknown:** whether the cap is lifetime or resets periodically. Not established either way, and it does not change the plan under either reading. If a reset is observed, log it here.
+
+**Status:** ACCEPTED — the constraint stands, deliberately, and is designed around.
 
 ---
 

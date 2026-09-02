@@ -141,7 +141,7 @@ Estimates assume solo, focused days. "Gate" = do not proceed until true.
 
 1. `git init`, public GitHub repo, `pyproject.toml`, package skeleton per §1, `.env.example`.
 2. Create the four living docs (`BUILD-LOG`, `ISSUES`, `ROADMAP`, this plan) + `CLAUDE.md` maintenance protocol.
-3. **Email Razorpay Support asking to raise the 30-link test-mode cap.** Five minutes of work, days of latency, nothing else blocks on it. Do it in hour one. Log the outcome in `ISSUES.md` either way.
+3. ~~Email Razorpay Support asking to raise the 30-link test-mode cap.~~ **Dropped — decided against.** The cap is load-bearing for the pitch (scarcity is what the agent allocates), the demo needs the loop to close *once* rather than at volume, and the real risk — burning links while debugging — is solved by mock-first development in Phase 4, not by a bigger quota. See the link budget in Phase 4 and ISS-001.
 4. Razorpay test-mode account: generate API keys, confirm you can create one Payment Link with `curl`. A 10-minute smoke test that de-risks all of Phase 4.
 5. Seed `ISSUES.md` with the five constraints already discovered — they are research, not guesses. See §7. *(Already done.)*
 6. **Decide what happens to `chat_history.txt` before the first public push.** It contains build strategy and competitive reasoning about what other entrants are likely to do. Either move it to `docs/research/` deliberately, add it to `.gitignore`, or keep it outside the repo. `recoup-build-spec.md` is fine to publish — it is the design doc. This is a one-line decision that is much cheaper now than after the repo is public.
@@ -228,8 +228,26 @@ Estimates assume solo, focused days. "Gate" = do not proceed until true.
 
 **~0.75 day.**
 
+**Build mock-first.** Every part of this phase except the final verification can be built and tested against a fake client that returns the same response shape — and should be, because those tests then run in CI, offline, forever. Real links get spent only on proving the loop actually closes.
+
+**Link budget — 30 total, and it is not tight if you respect this:**
+
+| Activity | Links |
+|---|---|
+| Development against the fake client | 0 |
+| Signature verification, against a captured fixture | 0 |
+| Webhook handler, by replaying a saved payload | 0 |
+| First real end-to-end verification | ~3 |
+| Phase 4 gate + screen recording the live round-trip | ~3 |
+| Phase 7 re-record, if needed | ~3 |
+| `check-razorpay` smoke test (Phase 0) | 1 |
+| **Spare** | **~18** |
+
+Unknown: whether the 30 is a lifetime cap or resets. It does not change the plan under either reading. If you observe it reset, log that in `ISSUES.md` — it is a genuine finding.
+
 | Task | Notes |
 |---|---|
+| `executor/fake_razorpay.py` | Same interface as the live client, same response shape, zero network. Everything below is developed against this. |
 | `executor/live_razorpay.py` | Standard Payment Links API, server-side, test mode. |
 | `executor/budget.py` | Global budget (30, or whatever Support granted). **The agent must allocate the scarcity** — highest-expected-recovery invoices get the real links. This is the sentence that turns the cap into a feature; make sure the code actually implements allocation rather than taking the first 30. |
 | `webhook/app.py` | FastAPI, `razorpay_signature` HMAC verification, idempotent by `payment_id`, reconciles into the ledger as an ordinary state transition. |
@@ -352,7 +370,7 @@ Always set `betas: ["server-side-fallback-2026-07-01"]` + `fallbacks: "default"`
 | Free text too thin → project reads as a rules engine | **High** | 3 dedicated hours, 25–30 varied templates, each reviewed against "could a regex do this?" | 1 |
 | Agent does not beat the baseline | Medium | Treat as a finding, not a failure. Investigate before adding features. Report it honestly either way — the track's bar explicitly rewards the exception list. | 3 |
 | Anthropic API down or slow during recording | Medium | Disk cache + deterministic fallback, both tested with the key unset | 3 |
-| Razorpay link cap not raised | High | Already the design: scarcity is modelled as a real constraint the agent must allocate | 0, 4 |
+| Burning the 30-link budget on debugging, none left to record with | Medium | Mock-first Phase 4 development; the link budget below. The cap itself is not a risk — it is the design. | 4 |
 | Webhook tunnel flaky on demo day | Medium | Capture the live round-trip on video in Phase 4, the day it works | 4 |
 | Citing an unverified regulation on screen | Low but **fatal** | `RuleSource.verified` flag; unverified rules render with a visible chip and never appear in the video | 2 |
 | Phase 5 design work eats Phase 6 | Medium | Streamlit was chosen precisely to prevent this. Hard-stop the dashboard at 0.5 day. | 5 |
@@ -378,7 +396,7 @@ This protocol also lives in `CLAUDE.md`, so it survives context resets.
 
 | Item | Phase | Status |
 |---|---|---|
-| Razorpay Support — raise the 30-link cap | 0 | **not started — yours, do it first** |
+| ~~Razorpay Support — raise the 30-link cap~~ | 0 | **dropped** — 30 is enough under the Phase 4 link budget, and the cap is load-bearing for the pitch |
 | TRAI promotional-messaging window — verify at trai.gov.in | 2 | not started |
 | RBI Fair Practices 08:00–19:00 contact rule — verify at rbi.org.in | 2 | not started |
 | RBI E-mandate Framework 2026 — title, date, provisions | 6 (P1, mandate lane only) | not started |
