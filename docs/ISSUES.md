@@ -7,6 +7,8 @@
 
 **Maintenance:** append at the close of every phase — and immediately when you hit something, because you will not remember it on Day 6. Never delete an entry; mark it `RESOLVED` with what fixed it.
 
+**Scope.** This file is for problems *hit*. Measured facts that are true, unresolved **by design**, and constrain later phases live in [`OBSERVATIONS.md`](OBSERVATIONS.md) — an entry there implies nothing went wrong. If an observation stops being true because someone fixed it, it moves here.
+
 ---
 
 ## Severity key

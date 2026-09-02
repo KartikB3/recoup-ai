@@ -11,7 +11,8 @@ Read in this order:
 1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, then Phase 3.
 2. `docs/BUILD-LOG.md` — the Phase 2 entry and post-tag audit-hardening entry.
 3. `docs/ISSUES.md` — **ISS-017, ISS-024, ISS-025, ISS-027 and ISS-028–031** carry the lessons that constrain later phases; ISS-012 and ISS-021 remain live obligations.
-4. This file, below, for the invariants.
+4. `docs/OBSERVATIONS.md` — **OBS-001 and OBS-003 shape what Phase 3 is allowed to claim**; OBS-005 is its cost model.
+5. This file, below, for the invariants.
 
 **What Phase 3 starts from.** Everything from Phase 1–2, plus a post-tag
 four-arm comparison under `runs/seed42/`: control, naive baseline, the identical
@@ -65,12 +66,13 @@ policy, which is labelled merchant policy — never dressed up as regulatory.
 
 ## Documentation protocol — run this at the close of every phase
 
-Four living docs. They are only useful if they stay true.
+Five living docs. They are only useful if they stay true.
 
 1. `docs/BUILD-LOG.md` — append the phase entry (template at the bottom of that file): what was built, key decisions and why, gate evidence, numbers.
 2. `docs/ISSUES.md` — append every dead end, wrong turn and external constraint hit this phase. **This is a graded submission field** ("Build Challenges & Technical Obstacles"), not housekeeping. Write it for a judge. Log issues *as they happen*, not at phase close — you will not remember them on Day 6.
 3. `docs/ROADMAP.md` — re-scope. Move completed items out, slipped items down, add newly discovered ones.
-4. `docs/IMPLEMENTATION-PLAN.md` — update the status line at the top; amend later phases if a decision changed.
+4. `docs/OBSERVATIONS.md` — review, don't just append. Measured facts that are true and unresolved *by design*, each naming what would change it. Delete an observation that stops being true; if it stopped being true because someone fixed it, it becomes an `ISSUES.md` entry.
+5. `docs/IMPLEMENTATION-PLAN.md` — update the status line at the top; amend later phases if a decision changed.
 
 ## Before writing Anthropic SDK code
 
