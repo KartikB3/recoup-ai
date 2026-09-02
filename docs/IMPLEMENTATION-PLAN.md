@@ -3,7 +3,7 @@
 **Track 03: AI Revenue Recovery · Razorpay Buildathon · Solo · ~7 days**
 Companion to `recoup-build-spec.md` (the *what*). This is the *how*.
 
-Status: **Phase 0 complete, gate met** (`702f213`). Razorpay test credentials verified end to end. Repo is committed locally; the public push is deliberately deferred to the user. **Next: Phase 1.**
+Status: **Phase 1 complete, gate met** (`7fb21ce`). Byte-identical batch across three processes; both arms advance 112 ticks with no LLM and no policy engine; replay reconstructs both runs from the log alone with 0 divergences. 164 tests, mypy strict clean. **Next: Phase 2 — the phase that ends with a submittable system.** The public push is still deferred to the user.
 Last updated: 2026-09-02
 
 ---

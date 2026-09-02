@@ -4,22 +4,31 @@ Razorpay Buildathon, Track 03. Solo, ~7 days. Read `docs/IMPLEMENTATION-PLAN.md`
 
 ## Start here (cold session)
 
-**Phase 0 is complete and its gate is met.** Repo is committed locally on `main` (4 commits, clean tree); Razorpay test credentials are verified; `.env` exists and is gitignored. **Phase 1 is next.**
+**Phases 0 and 1 are complete and both gates are met.** Repo is committed locally on `main`, clean tree. **Phase 2 is next, and it is the phase that outranks everything** — it ends with a complete, submittable system tagged `v0.1-submittable`.
 
 Read in this order:
 
-1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, §2 the contracts to freeze, §3 Phase 1.
-2. `docs/BUILD-LOG.md` — the Phase 0 entry: what exists and why.
-3. `docs/ISSUES.md` — 13 findings. ISS-012 is a live Phase 4 risk.
+1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, §3 Phase 2.
+2. `docs/BUILD-LOG.md` — the Phase 1 entry: what exists, the numbers, the four deviations from the plan.
+3. `docs/ISSUES.md` — 21 findings. **ISS-017 is the one to read**; ISS-012 and ISS-021 are live obligations.
 4. This file, below, for the invariants.
 
-**Phase 1 in one line:** domain contracts, seeded generator (120+ records), the free-text corpus, virtual clock, ledger state machine, and the audit replay test — **with no LLM anywhere in it**.
+**What Phase 1 left you.** Domain contracts, a 126-record seeded generator, a 54-template corpus, the virtual clock, the ledger state machine, the seeded adjudicator, the append-only log with its hash chain, replay, the executor seam, the naive baseline, a do-nothing control, and the tick loop. 164 tests. No LLM anywhere on the execution path.
 
-The highest-leverage task in Phase 1 is the **free-text corpus**, not the code. Three focused hours, 25–30 templates with slot variation. If the records carry only amounts and dates, the LLM has nothing to read that a regex couldn't parse, and the whole project collapses into a rules engine. Do not let this get squeezed.
+Setup: `uv sync --extra dev`. Check: `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest`. Note `ruff format --check` — CI enforces it and the old check line here omitted it.
 
-Setup: `uv sync --extra dev`. Check: `uv run ruff check . && uv run mypy && uv run pytest`. The scaffold tests fail loudly if a subpackage is renamed — that is deliberate, five gates reference those paths by name.
+**Phase 2 in one line:** verify the TRAI and RBI citations at source, write the policy engine that vetoes, wire it into `run_batch`, and produce the metric table across three arms.
 
-**Not done, deliberately:** the public GitHub push. It is the user's call. Nothing in Phases 1–6 depends on it; the submission does.
+Two seams already exist and are the whole of the work:
+
+- **`PolicyGate`** is a Protocol in `runner/batch.py` with no implementation. `run_batch` already threads it through, logs the verdict on the decision row, and treats a veto as a spent review slot with no contact and no budget. Phase 2 supplies a class, not a loop.
+- **`Proposer`** is what both arms already satisfy. It receives a **snapshot**, never an `Invoice`, so nothing implementing it can read `payer_archetype`, `flags`, `provenance` or `spotlight`. Keep it that way; a test enforces it.
+
+**Report three arms, not two.** `AlwaysWait` recovers **49.3%** of the book with zero contacts. The naive baseline gets 62.3% for 459 contacts, 225 payment links and 28 cases handed to a human. A metric table without the do-nothing floor flatters whichever arm is being sold.
+
+**Invariant 7 gates Phase 2's headline feature.** Do not write a rule citing TRAI or RBI until the citation is verified at the issuing body. `RuleSource.verified` is load-bearing and an unverified rule never appears in the video.
+
+**Not done, deliberately:** the public GitHub push. It is the user's call. Nothing in Phases 2–6 depends on it; the submission does.
 
 ## The rule that outranks everything
 

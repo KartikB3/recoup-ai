@@ -5,7 +5,7 @@ Two horizons, kept deliberately separate. Do not let the second one leak into th
 
 **Maintenance:** re-scope at the close of every phase. Move completed items out of §1, move slipped items down, and add anything newly discovered.
 
-Last updated: 2026-09-02 · **Phase 0 complete, gate met.** Razorpay credentials verified. Phase 1 is next; the public push is the only outstanding Phase 0 item and nothing in Phases 1–6 depends on it.
+Last updated: 2026-09-02 - **Phase 1 complete, gate met.** Byte-identical batch verified across three processes; both arms run 112 ticks with no LLM and no policy engine; replay reconstructs both from the log alone with 0 divergences. 164 tests. **Phase 2 is next, and it is the one that matters** - it ends with a complete, submittable system tagged `v0.1-submittable`. The public push remains the only outstanding Phase 0 item.
 
 ---
 
@@ -15,13 +15,13 @@ Last updated: 2026-09-02 · **Phase 0 complete, gate met.** Razorpay credentials
 
 | # | Item | Phase | State |
 |---|---|---|---|
-| 1 | Seeded generator, 120+ records, documented distribution | 1 | ⬜ |
-| 2 | Free-text corpus — 25–30 varied templates | 1 | ⬜ |
-| 3 | Virtual clock + ledger state machine | 1 | ⬜ |
-| 4 | Append-only audit log + replay acceptance test | 1 | ⬜ |
+| 1 | ~~Seeded generator, 120+ records, documented distribution~~ | 1 | ✅ 126 records, `docs/SEED-DISTRIBUTION.md` |
+| 2 | ~~Free-text corpus~~ | 1 | ✅ **54 templates, 8,333 renderings** — comfortably past the 25–30 ask |
+| 3 | ~~Virtual clock + ledger state machine~~ | 1 | ✅ plus the seeded adjudicator |
+| 4 | ~~Append-only audit log + replay acceptance test~~ | 1 | ✅ 0 divergences, both arms, 126×112 |
 | 5 | TRAI + RBI Fair Practices citations verified at source | 2 | ⬜ |
 | 6 | Policy engine that vetoes, with sources rendered in the UI — **depends on #5** | 2 | ⬜ |
-| 7 | Naive baseline chaser on the same seed | 2 | ⬜ |
+| 7 | ~~Naive baseline chaser on the same seed~~ | 2 | ✅ **landed early in Phase 1** — 459 contacts, 62.3% recovered |
 | 8 | Full metric table, both arms, losses included | 2 | ⬜ |
 | 9 | **Gate: `v0.1-submittable` tagged — complete system, no LLM** | 2 | ⬜ |
 | 10 | Structured-output reasoner + input-hash cache + deterministic fallback | 3 | ⬜ |
@@ -30,6 +30,19 @@ Last updated: 2026-09-02 · **Phase 0 complete, gate met.** Razorpay credentials
 | 13 | README with the Razorpay boundary and metric table above the fold | 6 | ⬜ |
 | 14 | Seven submission-form answers drafted | 6 | ⬜ |
 | 15 | Five-minute video | 7 | ⬜ |
+
+**Newly discovered in Phase 1, now P0:**
+
+| # | Item | Phase | State |
+|---|---|---|---|
+| 16 | Wire `PolicyGate` into `run_batch` — the Protocol and the veto path already exist and are logged; Phase 2 supplies the implementation | 2 | ⬜ |
+| 17 | The agent arm's `Proposer` — same Protocol the baseline satisfies, receives a snapshot so it structurally cannot read ground truth | 3 | ⬜ |
+| 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ⬜ |
+
+`AlwaysWait`, the do-nothing control arm, was added in Phase 1 and is not in the
+original plan. It recovers **49.3%** of the book with zero contacts. Every
+metric table from Phase 2 on must report it alongside the other two arms, or
+the comparison flatters whichever arm is being sold.
 
 ### P1 — turns solid into winning
 

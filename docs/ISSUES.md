@@ -193,7 +193,100 @@ These are 🔵. None of them may reach the video unverified. The `RuleSource.ver
 
 ---
 
+### ISS-014 · 🟢 Heredoc authoring failed again in Phase 1, exactly as ISS-013 predicted
+
+**Phase:** 1
+**What happened:** Writing `payer_notes.yaml` through a shell heredoc failed with `unexpected EOF while looking for matching quote` and left no file behind. The corpus YAML contains apostrophes inside quoted English prose, which is the same class of failure logged in ISS-013. It then happened a **third** time while appending this very entry to `ISSUES.md`, because the entry text itself contains quoted shell fragments.
+**Why it matters:** Only twenty minutes each time, but it was time spent on a problem already solved and written down. The Phase 0 note existed and was not followed.
+**What we tried:** One heredoc attempt, then a switch to direct file writes for all long-form content — which is what ISS-013 already prescribed.
+**Design consequence:** None to the system. The working rule is now firm: **long-form prose goes through a file write, never a heredoc**; heredocs are reserved for short, quote-free shell content, and multi-line source edits go through a small Python script that reads its input from a file rather than from stdin.
+**Status:** RESOLVED.
+
+---
+
+### ISS-015 · 🟡 Two of the nine cluster records rendered near-identical text on the demo seed
+
+**Phase:** 1
+**What happened:** On seed 42, `ASH-2026-0002` and `ASH-2026-0006` — the two records carrying the STRONG cluster hint, and the clearest voices in the batch-level insight — drew the same template pair (`CN-01` + `CE-01`) and the same opening slot value. Side by side they read as copy-paste.
+**Why it matters:** Those nine records are the single passage a judge reads most closely, because the batch-level insight is the only claim in the project that an LLM does something a lookup table cannot. Text that looks machine-generated there undermines the claim it is meant to support.
+**What we tried:** First checked whether the RNG was correlated across cluster slots — it was not; seeds 43–46 produced varied draws, so seed 42 was a genuine coincidence. Rejected special-casing seed 42 in the generator as dishonest and fragile. Then found the real cause: `CN-02` and `CE-02`, the *second* STRONG templates, excluded `RELIABLE_BUT_SLOW`, and both STRONG cluster slots are that archetype — so the pair was forced, not unlucky. The restriction turned out to be arbitrary; nothing in an authority-change note is specific to a chronically late payer.
+**Design consequence:** Three changes, in increasing order of value. (1) The archetype restriction on `CN-02`/`CE-02` was dropped. (2) `_without` in `generate.py` now filters templates already spent by a record's cluster siblings, falling back to the unfiltered pool rather than emitting a record with no free text; a payer also no longer draws the same template for two emails. (3) The underlying problem was corpus breadth — the WEAK band had one template pair for two records and MEDIUM had two for three, so the fallback was firing by construction. Six templates were added (`CN-06`–`CN-08`, `CE-06`–`CE-08`), taking the corpus from 48 to 54 and the cluster bands to exact coverage. All nine records now draw distinct templates. `tests/test_corpus.py::test_cluster_hints_are_graded` asserts each band is at least as deep as its demand, so the fallback cannot start firing again silently.
+**Status:** RESOLVED.
+
+---
+
+### ISS-016 · 🟡 A "signal leakage" test was written, failed, and was deleted as unsound
+
+**Phase:** 1
+**What happened:** `tests/test_corpus.py` originally asserted that no template body contains the words of its own signal tag — the mechanical reading of the corpus rule in `SignalKind`. It failed immediately on `CE-02-new-finance-head`, tagged `AUTHORITY_CHANGE`, for containing the word "change".
+**Why it matters:** The instinct on a failing test is to weaken it until it passes. Doing that here would have left a test that looked like it enforced the corpus rule and did not.
+**What we tried:** Loosened the heuristic to require *every* word of a multi-word signal to appear. That flagged ten templates, of which most were plainly legitimate: `PN-09-tds` for saying "TDS deduction", `ER-03-already-remitted` for saying the payer had already paid. Those are exactly what such payers would write, and they only ever appear in PROSE — which is the entire point. A note is not disqualified by being clear; it is disqualified by putting the answer in a structured field, and none of them do.
+**Design consequence:** The generic test was removed rather than tuned, and the reasoning written into the file that replaced it. What actually needs enforcing is narrower and is now covered by two precise tests: the curated `BANNED_IN_CLUSTER` word list, checked against every template body, subject line and slot value in the CLUSTER pool; and `test_the_batch_insight_cannot_be_read_off_a_single_record`, which caps STRONG cluster hints at two of nine. A vague test that fires on good text trains you to ignore it.
+**Status:** RESOLVED.
+
+---
+
+### ISS-017 · 🔴 The ledger wrote records off outside the audit log, and the replay test did not notice
+
+**Phase:** 1
+**What happened:** `Ledger.finalise()` moved every still-EXHAUSTED record to WRITTEN_OFF at the end of a run, with no audit row emitted. `audit.replay` reproduced those write-offs by calling a `finalise_replay()` helper that re-ran the same logic afterwards. Every test passed. The gap surfaced only when `recoup replay` was run against a committed artifact: the CLI has no run object and inferred the horizon from the last row in the log — 101, where the run had used 112 — and all 19 written-off records came back with the wrong `resolved_tick`.
+**Why it matters:** This is the most serious defect found in the phase, and it is serious because of what it says rather than what it broke. **A state change existed that the audit log could not account for**, in a project whose central claim is that every action is auditable and every run reconstructible. The replay test passed because it was re-deriving the answer from a copy of the logic instead of reading it out of the log — the exact failure mode the design was written to prevent, reproduced inside the test meant to prevent it.
+**What we tried:** The first instinct was to store the horizon in `summary.json` so the CLI could stop guessing. That would have worked and would have been wrong: it patches the symptom and leaves an unlogged state change in place.
+**Design consequence:** `Ledger.finalise` is gone. `Ledger.awaiting_write_off()` returns the eligible records without moving them, and `runner/batch.py` applies each through the same outcome path as every other state change, so the write-off lands in the log as an `OutcomeKind.WRITTEN_OFF` row with its tick attached. Replay now needs no finalisation step and no knowledge of the horizon; `finalise_replay` was deleted. `tests/test_replay.py::test_write_offs_are_rows_in_the_log_not_an_implied_side_effect` reconstructs the closing position with no finalisation call anywhere in it.
+**The general lesson, recorded because it will recur:** a replay that shares a helper with the thing it is checking is not a check. The standard adopted for the rest of the build is that replay may call the ledger's own writers — that is the point, one implementation — but it may never call anything that *decides* what to write.
+**Status:** RESOLVED.
+
+---
+
+### ISS-018 · 🟡 `run_batch` mutated the caller's records, so the stored batch file was the closing position
+
+**Phase:** 1
+**What happened:** `run_batch` was documented as mutating its `records` argument in place, with callers expected to reload the batch when they needed a clean copy. `write_run(result, batch, ...)` then wrote the batch as `batch.json` — but `batch.records` was the very list the run had just walked over, so the "opening position" file contained the final states. Replaying from it double-applied every row.
+**Why it matters:** It was caught by a test within minutes, but the same footgun had a worse version waiting: running two arms off one batch object and comparing them to each other would have produced a comparison of a book against itself, and nothing would have crashed.
+**What we tried:** Nothing else. The in-place design was a deliberate choice made earlier in the phase to avoid 126 model copies, and it was simply not worth it.
+**Design consequence:** `run_batch` now deep-copies each record into its ledger and leaves the caller's list untouched; the final position lives on `result.ledger.records`. One `model_copy` per record is free next to a 112-tick run.
+**Status:** RESOLVED.
+
+---
+
+### ISS-019 · 🟢 Three state-machine holes found by exhaustive tests rather than by running the code
+
+**Phase:** 1
+**What happened:** `tests/test_ledger.py` asserts that `state_after_action` and `state_after_outcome` never name a move `ALLOWED_TRANSITIONS` forbids, over every (state, intervention) and (state, outcome) pair. Two of the three holes it found had already crashed a real run; the third had not, and would not have for some time.
+
+- `set_promise` promoted a HUMAN_QUEUE record back to PROMISED — automation reclaiming a case a human already owned, because a contact was still in flight when the escalation happened.
+- `STOP` demoted DISPUTED and HUMAN_QUEUE records to EXHAUSTED, which fed them to write-off and booked open commercial matters as settled losses.
+- `state_after_outcome` returned WRITTEN_OFF from *any* state, contradicting the ledger's own documented rule that WRITTEN_OFF is reachable only from EXHAUSTED at finalisation. An outcome row carrying it would have written off a live receivable.
+
+**Why it matters:** The third one is the argument for exhaustive tests over example-based ones. It was unreachable in Phase 1 because nothing emits that outcome yet — and it would have become reachable the moment Phase 2 or 4 did, with no test failing.
+**Design consequence:** A single `_legal(current, target)` helper now filters every derived transition through `ALLOWED_TRANSITIONS`, so the table is the one place any of this is decided and a derivation function cannot contradict it. `set_promise` records the phrase and the due tick regardless but only moves state when the machine permits it, so a payer whose case a human owns can still promise, and still pay, without automation taking the case back. `UNATTENDED_STATES` keeps HUMAN_QUEUE records out of the review rotation entirely — they reach that state via a COMPLAINT outcome, which never pushed out `next_review_tick`, so the agent had been proposing actions on cases a person had already taken over.
+**Status:** RESOLVED.
+
+---
+
+### ISS-020 · 🟢 `PyYAML` ships no inline types either, but publishes stubs
+
+**Phase:** 1
+**What happened:** `mypy --strict` failed with *"Library stubs not installed for 'yaml'"* once the corpus loader landed.
+**What we did:** Added `types-PyYAML` to the `dev` extra. Deliberately **not** the narrow-override treatment ISS-012 gave `razorpay`: PyYAML publishes real stubs, so installing them keeps full type checking over the corpus loader, whereas an override would switch it off.
+**Design consequence:** None. Recorded so the difference between the two decisions is on the record — `razorpay` gets an override because no stubs exist, not because overrides are the house style.
+**Status:** RESOLVED.
+
+---
+
+### ISS-021 · 🟡 The naive baseline was accidentally a straw man, and the fix was a judgement call
+
+**Phase:** 1
+**What happened:** With the first fatigue parameters (`FATIGUE_ONSET=2`, `FATIGUE_COMPLAINT_STEP=0.035`), the naive chaser drove **44 of 126 records** into the human queue over its five-contact campaign. That is 35% of the book needing human attention because a system sent five reminders, which is not a credible outcome.
+**Why it matters:** A baseline that loses badly is worth nothing. The entire comparison in build spec section 7a rests on the baseline being what a competent engineer actually ships — if a judge reads the numbers as rigged, every downstream claim goes with it. The risk here ran opposite to the usual one: not that the agent looks bad, but that it looks too good.
+**What we tried:** Swept the two parameters and read off the effect on human-queue volume and recovery: `(2, 0.035)` gave 44 queued at 61.7% recovered; `(3, 0.025)` gave 35 at 62.3%; `(3, 0.015)` gave 28 at 62.3%; `(3, 0.010)` gave 23. Recovery barely moves across the whole range, so the choice is entirely about the plausibility of the HARM, not about who wins.
+**Design consequence:** Settled on `FATIGUE_ONSET=3` and `FATIGUE_COMPLAINT_STEP=0.015`: three penalty-free approaches matches ordinary commercial practice, and 28 human-queue items from 459 contacts reads as a costly-but-real system. **This was a calibration, and calling it anything else would be dishonest** — the reasoning, the numbers considered and the target are written out in full at the constant itself in `ledger/adjudicator.py`, and `docs/SEED-DISTRIBUTION.md` states plainly that every number in the behaviour table is a modelling choice rather than a measured quantity.
+**Status:** RESOLVED — and flagged for the Phase 6 write-up, because a judge is entitled to ask how these numbers were chosen.
+
+---
+
 *Append below as they happen. Do not wait for phase close.*
+
 
 ---
 
