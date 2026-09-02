@@ -3,7 +3,7 @@
 **Track 03: AI Revenue Recovery · Razorpay Buildathon · Solo · ~7 days**
 Companion to `recoup-build-spec.md` (the *what*). This is the *how*.
 
-Status: **Phase 1 complete, gate met** (`7fb21ce`). Byte-identical batch across three processes; both arms advance 112 ticks with no LLM and no policy engine; replay reconstructs both runs from the log alone with 0 divergences. 164 tests, mypy strict clean. **Next: Phase 2 — the phase that ends with a submittable system.** The public push is still deferred to the user.
+Status: **Phase 2 complete, gate met** (`v0.1-submittable`). `recoup run --seed 42 --arm both` produces control, baseline and deterministic-agent artifacts plus JSON/Markdown metrics; all three logs replay with zero divergences. 180 tests, mypy strict clean over 51 source files. **Next: Phase 3 — structured reasoner output over the already-green fallback seam.** The public push is still deferred to the user.
 Last updated: 2026-09-02
 
 ---
@@ -20,7 +20,7 @@ These were open in the spec. They are now closed. Do not relitigate mid-build.
 | Webhook receiver | **FastAPI** (single file, ngrok/cloudflared tunnel) | Only needed for the Razorpay live slice. Kept out of the dashboard process deliberately. |
 | Product reasoner model | **`claude-opus-5`**, adaptive thinking, `effort: "medium"` | See §5. |
 | Framing (infra vs product) | **Deferred to Phase 6**, per your call | Phase 5 must therefore build *both* affordances cheaply: the metric table (infra) and a single named-payer timeline (product). Costs ~1 extra hour, buys the option. |
-| Repo | Public GitHub, `git init` in Phase 0 | This directory is **not currently a git repo**. |
+| Repo | Local `main`, public GitHub deferred to the user | The repository, history and `v0.1-submittable` tag exist locally; publishing is a separate user decision. |
 
 **The one constraint that outranks everything else:** the Phase 2 gate. At the end of Phase 2 you have a complete, submittable system with **no LLM in it**. Every phase after that is upside, not risk. If a phase threatens the Phase 2 gate, the phase loses.
 
@@ -179,7 +179,7 @@ Estimates assume solo, focused days. "Gate" = do not proceed until true.
 
 ### Phase 2 — Policy engine + baseline + metric table. **THE MILESTONE.**
 
-**~1 day. Protect this above everything.**
+**✅ Complete 2026-09-02. The tagged no-LLM floor.**
 
 | Task | Notes |
 |---|---|
@@ -193,7 +193,7 @@ Estimates assume solo, focused days. "Gate" = do not proceed until true.
 
 **Merchant-policy rules — label them merchant-configured, never regulatory:** max 4 contacts / payer / 30 days; ≥72h spacing; max 3 payment links / invoice; hard stop on `DISPUTED`; escalate above a configurable value; global 30-link API budget. **Do not invent a regulatory retry cap** — no verified source exists, and getting caught inventing a regulation is worse than citing none.
 
-**Gate — the one that matters:** `python -m recoup.runner --seed 42 --arm both` runs end to end and produces `runs/<id>/metrics.md` with both arms filled in, and **you could submit this today**. Tag the commit `v0.1-submittable`. Write the Phase 2 entry in `BUILD-LOG.md` before moving on.
+**Gate — met:** `recoup run --seed 42 --arm both` runs end to end and produces `runs/seed42/metrics.md` with control, baseline and agent filled in. `both` remains the compatible gate spelling and is an alias for all three arms; `--arm all` is the explicit spelling. The installed CLI is the real surface — the earlier `python -m recoup.runner` line was wrong because no runner module entry point exists. Evidence and numbers are in `BUILD-LOG.md`; the commit is tagged `v0.1-submittable`.
 
 **Model/effort:** `Opus 5`, effort `xhigh` throughout; step up to `max` for the rule-ordering logic and the metrics computation — an off-by-one in "contacts per ₹ recovered" is exactly the kind of error that survives all the way to the video. Use WebSearch/WebFetch for the two verification tasks; never answer a citation from memory.
 
@@ -208,7 +208,7 @@ Estimates assume solo, focused days. "Gate" = do not proceed until true.
 | `reasoner/schemas.py` | Pydantic → JSON Schema → `output_config: {format: ...}`. Read back with `client.messages.parse()`. |
 | `reasoner/prompts.py` | System prompt carries the intervention space, the policy rules (so the model proposes *plausible* actions), and the "you never output a rupee amount or a date" constraint. **Put the frozen system prompt first and cache it** — prefix caching is what makes 120 records × 2 arms affordable. |
 | `reasoner/cache.py` | Cache by SHA-256 of the canonical input snapshot. Disk-backed at `data/llm_cache/`, **committed to the repo**. This makes runs reproducible *and* makes the demo work with the API down. Do not let this become an untracked directory — the offline gate silently depends on it. |
-| `reasoner/fallback.py` | Deterministic path for when the API errors, times out, or refuses. **Assume the API is down while you record the video.** Branch on a falsy-or-missing key, not on key absence. CI runs the suite with `ANTHROPIC_API_KEY: ""` so this stays true. |
+| `reasoner/fallback.py` | **Landed early in Phase 2 and already drives the agent arm.** Phase 3 preserves it as the deterministic path for API errors, timeouts or refusals. Assume the API is down while recording. Branch on a falsy-or-missing key, not key absence; CI uses `ANTHROPIC_API_KEY: ""`. |
 | `reasoner/batch_insight.py` | The §7b call: one prompt over the aggregate, run at effort `high`. Detects the parent-group cluster and returns a suppression recommendation which the **policy engine still has to approve**. |
 | Re-run and compare | Agent vs baseline on seed 42. If the agent does not beat the baseline, that is a *finding* — investigate before adding features. Log it in `ISSUES.md` either way. |
 
@@ -397,8 +397,8 @@ This protocol also lives in `CLAUDE.md`, so it survives context resets.
 | Item | Phase | Status |
 |---|---|---|
 | ~~Razorpay Support — raise the 30-link cap~~ | 0 | **dropped** — 30 is enough under the Phase 4 link budget, and the cap is load-bearing for the pitch |
-| TRAI promotional-messaging window — verify at trai.gov.in | 2 | not started |
-| RBI Fair Practices 08:00–19:00 contact rule — verify at rbi.org.in | 2 | not started |
+| ~~TRAI promotional-messaging window — verify at trai.gov.in~~ | 2 | **done** — corrected to TCCCPR default preference bands; ISS-024 |
+| ~~RBI Fair Practices 08:00–19:00 contact rule — verify at rbi.org.in~~ | 2 | **done** — verified with scope caveat; ISS-025 |
 | RBI E-mandate Framework 2026 — title, date, provisions | 6 (P1, mandate lane only) | not started |
 | Refunds API behaviour in test mode | 4, only if used | not started |
 | Does the buildathon supply a dataset? | 0 | assumed not; the generator is ours |

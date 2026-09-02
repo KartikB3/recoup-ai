@@ -266,6 +266,22 @@ class PolicyVerdict(BaseModel):
     rule_id: str | None = None
     rule_source: RuleSource | None = None
     explanation: str = ""
+    defer_to_tick: Tick | None = None
+    """When a "not now" verdict says the proposal could be reconsidered.
+
+    A Phase 2 addition to the planned field list, and the reason is ISS-025.
+    Contact-window rules are deferrals, not refusals: without somewhere to put
+    the deferral the runner pushes the next review by the proposed
+    intervention's usual interval, which is a whole number of virtual days, so
+    a record blocked at 20:00 comes back at 20:00 and is blocked for the rest
+    of the run.
+
+    It is a TICK, not a date, and it is computed by the deterministic engine
+    from the virtual clock -- never by a model. Invariant 3 is untouched: the
+    field is on the verdict, not on `LLMProposal`. It is logged on the audit
+    row, so `audit.replay` reads the deferral back out of the log rather than
+    recomputing it.
+    """
 
 
 class ActionRecord(BaseModel):

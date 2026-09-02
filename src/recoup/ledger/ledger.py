@@ -301,16 +301,21 @@ class Ledger:
         tick: Tick,
         *,
         executed: bool = True,
+        next_review_override: Tick | None = None,
     ) -> ActionRecord:
         """Apply an approved action: cost it, log the contact, set the next review.
 
         `executed=False` records a vetoed proposal. A veto still consumes a
         review slot -- the agent looked at the record and was stopped -- but it
-        makes no contact, spends no budget, and does not move the state.
+        makes no contact, spends no budget, and does not move the state. A
+        deferring rule can supply the next admissible tick explicitly.
         """
         details = spec(intervention)
+        if next_review_override is not None and next_review_override <= tick:
+            raise ValueError("next_review_override must be later than the action tick")
+        next_review_tick = next_review_override or tick + details.review_ticks
         if not executed:
-            record.next_review_tick = tick + details.review_ticks
+            record.next_review_tick = next_review_tick
             return ActionRecord(intervention=intervention, executed=False)
 
         channel: Channel | None = details.channel
@@ -330,7 +335,7 @@ class Ledger:
             record.contact_ledger.payment_links_sent += details.api_units
 
         self.transition(record, state_after_action(record.state, intervention), tick)
-        record.next_review_tick = tick + details.review_ticks
+        record.next_review_tick = next_review_tick
 
         return ActionRecord(
             intervention=intervention,

@@ -28,7 +28,9 @@ class Arm(StrEnum):
 
     agent = "agent"
     baseline = "baseline"
+    control = "control"
     both = "both"
+    all = "all"
 
 
 class ExecutorMode(StrEnum):
@@ -46,6 +48,11 @@ def _not_yet(phase: int, what: str) -> None:
         err=True,
     )
     raise typer.Exit(code=1)
+
+
+def _console_safe(text: str) -> str:
+    """Keep UTF-8 artifacts rich while remaining printable on CP-1252 Windows."""
+    return text.replace("₹", "Rs")
 
 
 @app.command()
@@ -82,7 +89,79 @@ def run(
     This command is the Phase 2 gate: `recoup run --seed 42 --arm both` must
     produce a full metric table with no LLM involved.
     """
-    _not_yet(2, "The batch runner")
+    from recoup.baseline.naive_chaser import NaiveChaser
+    from recoup.domain.enums import Arm as DomainArm
+    from recoup.generator.generate import generate_batch
+    from recoup.metrics.compute import compute_metrics
+    from recoup.metrics.report import write_reports
+    from recoup.policy.context import MerchantPolicy
+    from recoup.policy.engine import PolicyEngine
+    from recoup.reasoner.fallback import DeterministicFallback
+    from recoup.runner.batch import AlwaysWait, PolicyGate, Proposer, run_batch, write_run
+
+    if executor is ExecutorMode.live:
+        typer.secho(
+            "Live execution lands in Phase 4; Phase 2 only permits the deterministic "
+            "simulated executor.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1)
+
+    selected: tuple[DomainArm, ...]
+    if arm is Arm.agent:
+        selected = (DomainArm.AGENT,)
+    elif arm is Arm.baseline:
+        selected = (DomainArm.BASELINE,)
+    elif arm is Arm.control:
+        selected = (DomainArm.CONTROL,)
+    else:
+        # `both` remains the documented gate spelling, but now means the full
+        # comparison: control, baseline and agent. `all` says that explicitly.
+        selected = (DomainArm.CONTROL, DomainArm.BASELINE, DomainArm.AGENT)
+
+    batch = generate_batch(seed)
+    run_id = f"seed{seed}" if ticks == DEFAULT_TICKS else f"seed{seed}-t{ticks}"
+    run_dir = Path("runs") / run_id
+    metric_inputs = {}
+
+    for domain_arm in selected:
+        proposer: Proposer
+        policy: PolicyGate | None
+        if domain_arm is DomainArm.AGENT:
+            proposer = DeterministicFallback()
+            # A fresh engine owns per-run link-budget state. The simulated
+            # comparison leaves the Phase 4 live budget disabled.
+            policy = PolicyEngine(MerchantPolicy(link_budget=None))
+        elif domain_arm is DomainArm.BASELINE:
+            proposer = NaiveChaser()
+            policy = None
+        else:
+            proposer = AlwaysWait()
+            policy = None
+
+        result = run_batch(
+            batch.records,
+            proposer,
+            seed=seed,
+            run_id=run_id,
+            horizon=ticks,
+            policy=policy,
+        )
+        arm_dir = run_dir / domain_arm.value.lower()
+        write_run(result, batch, arm_dir)
+        metric_inputs[domain_arm] = (result.records, result.log.rows)
+        typer.echo(
+            f"{domain_arm.value.lower()}: recovered {result.recovered_paise} paise, "
+            f"contacts {result.contacts}, vetoes {result.vetoed}"
+        )
+
+    report = compute_metrics(metric_inputs)
+    _, markdown_path = write_reports(report, run_dir)
+    typer.secho(f"wrote {markdown_path}", fg=typer.colors.GREEN)
+    typer.echo(_console_safe(markdown_path.read_text(encoding="utf-8")))
+    if live_budget != 30:
+        typer.echo("live_budget is reserved for Phase 4 and was not applied to this simulation")
 
 
 @app.command()
@@ -90,8 +169,42 @@ def metrics(
     run_id: str = typer.Argument(..., help="Run id under runs/."),
     fmt: str = typer.Option("markdown", help="markdown | json"),
 ) -> None:
-    """Render the baseline-vs-agent metric table for a run. (Phase 2)"""
-    _not_yet(2, "Metric reporting")
+    """Recompute the three-arm metric table from stored artifacts. (Phase 2)"""
+    from recoup.audit.log import read_log, verify_chain
+    from recoup.domain.enums import Arm as DomainArm
+    from recoup.domain.models import Invoice
+    from recoup.metrics.compute import compute_metrics
+    from recoup.metrics.report import render_json, render_markdown, write_reports
+
+    run_dir = Path("runs") / run_id
+    metric_inputs = {}
+    for domain_arm in (DomainArm.CONTROL, DomainArm.BASELINE, DomainArm.AGENT):
+        arm_dir = run_dir / domain_arm.value.lower()
+        final_path = arm_dir / "final.json"
+        log_path = arm_dir / "audit.jsonl"
+        if not final_path.exists() or not log_path.exists():
+            continue
+        rows = read_log(log_path)
+        verify_chain(rows)
+        records = [
+            Invoice.model_validate(item)
+            for item in json.loads(final_path.read_text(encoding="utf-8"))
+        ]
+        metric_inputs[domain_arm] = (records, rows)
+
+    if not metric_inputs:
+        typer.secho(f"no arm artifacts found under {run_dir}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    report = compute_metrics(metric_inputs)
+    write_reports(report, run_dir)
+    if fmt == "markdown":
+        typer.echo(_console_safe(render_markdown(report)))
+    elif fmt == "json":
+        typer.echo(render_json(report))
+    else:
+        typer.secho("--fmt must be markdown or json", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
 
 
 @app.command()

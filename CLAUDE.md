@@ -4,35 +4,35 @@ Razorpay Buildathon, Track 03. Solo, ~7 days. Read `docs/IMPLEMENTATION-PLAN.md`
 
 ## Start here (cold session)
 
-**Phases 0 and 1 are complete and both gates are met.** Repo is committed locally on `main`, clean tree. **Phase 2 is next, and it is the phase that outranks everything** — it ends with a complete, submittable system tagged `v0.1-submittable`.
+**Phases 0–2 are complete and their gates are met.** The complete no-LLM floor is tagged **`v0.1-submittable`**. **Phase 3 is next:** structured reasoner output and the batch-level insight, built over the deterministic fallback path that already runs the full book.
 
 Read in this order:
 
-1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, §3 Phase 2.
-2. `docs/BUILD-LOG.md` — the Phase 1 entry: what exists, the numbers, the four deviations from the plan.
-3. `docs/ISSUES.md` — 21 findings. **ISS-017 is the one to read**; ISS-012 and ISS-021 are live obligations.
+1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, then Phase 3.
+2. `docs/BUILD-LOG.md` — the Phase 2 entry: the three-arm numbers, rule firings, gate evidence and deviations.
+3. `docs/ISSUES.md` — **ISS-017, ISS-024, ISS-025 and ISS-027** carry the lessons that constrain later phases; ISS-012 and ISS-021 remain live obligations.
 4. This file, below, for the invariants.
 
-**What Phase 1 left you.** Domain contracts, a 126-record seeded generator, a 54-template corpus, the virtual clock, the ledger state machine, the seeded adjudicator, the append-only log with its hash chain, replay, the executor seam, the naive baseline, a do-nothing control, and the tick loop. 164 tests. No LLM anywhere on the execution path.
+**What Phase 2 left you.** Everything from Phase 1, plus a verified ten-rule policy engine, logged forward-only deferrals, a deterministic snapshot-only agent proposer, complete CLI run/metrics flows, and a committed three-arm run under `runs/seed42/`. The agent recovers **57.8%** with 157 contacts and 23 false interventions; the baseline recovers 62.3% with 459 and 104; control recovers 49.3% with none. Eight `rbi-contact-hours` vetoes prove the verified contact rule is live. All three logs replay with zero divergences. **180 tests. No Anthropic import anywhere on the Phase 2 execution path.**
 
 Setup: `uv sync --extra dev`. Check: `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest`. Note `ruff format --check` — CI enforces it and the old check line here omitted it.
 
-**Phase 2 in one line:** verify the TRAI and RBI citations at source, write the policy engine that vetoes, wire it into `run_batch`, and produce the metric table across three arms.
+**Phase 3 in one line:** replace the fixed per-record diagnosis with structured model output and a cache, preserve the existing deterministic fallback, and add the one aggregate insight a per-record path cannot produce.
 
-Two seams already exist and are the whole of the work:
+Two seams are load-bearing:
 
-- **`PolicyGate`** is a Protocol in `runner/batch.py` with no implementation. `run_batch` already threads it through, logs the verdict on the decision row, and treats a veto as a spent review slot with no contact and no budget. Phase 2 supplies a class, not a loop.
-- **`Proposer`** is what both arms already satisfy. It receives a **snapshot**, never an `Invoice`, so nothing implementing it can read `payer_archetype`, `flags`, `provenance` or `spotlight`. Keep it that way; a test enforces it.
+- **`PolicyGate`** is implemented by `PolicyEngine`. It receives the full record and ledger, logs every firing source, and can approve, reduce or veto. Do not move policy logic into the reasoner.
+- **`Proposer`** receives a **snapshot**, never an `Invoice`, so neither the model nor fallback can read `payer_archetype`, `flags`, `provenance` or `spotlight`. The Phase 2 fallback already satisfies it; the Phase 3 client must satisfy the same Protocol.
 
 **Report three arms, not two.** `AlwaysWait` recovers **49.3%** of the book with zero contacts. The naive baseline gets 62.3% for 459 contacts, 225 payment links and 28 cases handed to a human. A metric table without the do-nothing floor flatters whichever arm is being sold.
 
-**Invariant 7 gates Phase 2's headline feature.** Do not write a rule citing TRAI or RBI until the citation is verified at the issuing body. `RuleSource.verified` is load-bearing and an unverified rule never appears in the video.
+**Invariant 7 remains load-bearing.** The shipped RBI and TRAI sources are verified and must not be weakened; RBI e-mandate claims remain unverified P1 work and must not enter the product unless the mandate lane ships and the issuing-body source is read.
 
 **Not done, deliberately:** the public GitHub push. It is the user's call. Nothing in Phases 2–6 depends on it; the submission does.
 
 ## The rule that outranks everything
 
-**Protect the Phase 2 gate.** At the end of Phase 2 there is a complete, submittable system with no LLM in it, tagged `v0.1-submittable`. Everything after that is upside. If a change threatens that gate, the change loses.
+**Protect the Phase 2 tag.** `v0.1-submittable` is the complete deterministic floor. Everything after it is upside. If a later change threatens the three-arm gate, replay, or the no-key fallback, the change loses.
 
 If behind schedule: cut from P1, never from P0. Drop order is in `docs/ROADMAP.md`.
 

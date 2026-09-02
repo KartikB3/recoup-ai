@@ -143,7 +143,14 @@ def _apply_decision(ledger: Ledger, record: Invoice, row: AuditRow, result: Repl
         # A row that reached a verdict but produced no action at all -- the
         # policy engine returning nothing to do. It still moved no state.
         return
-    ledger.record_action(record, row.action.intervention, row.tick, executed=row.action.executed)
+    defer_to_tick = row.policy_verdict.defer_to_tick if row.policy_verdict is not None else None
+    ledger.record_action(
+        record,
+        row.action.intervention,
+        row.tick,
+        executed=row.action.executed,
+        next_review_override=defer_to_tick,
+    )
     if row.action.executed:
         result.contacts += row.action.contact_units
         result.api_units += row.action.api_units

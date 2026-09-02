@@ -112,7 +112,11 @@ SPECS: dict[Intervention, InterventionSpec] = {
         # Voice is outside the DLT header scheme entirely, so there is no
         # category to classify. The contact-hour rule still applies.
         correct_category=None,
-        review_ticks=16,
+        # Four and a half virtual days. The extra half-day is deliberate: a
+        # phone call made at 08:00 moves the next review to 20:00, where the
+        # RBI contact-hour rule can demonstrably fire. Whole-day cadences kept
+        # every Phase 1 decision phase-locked at 08:00 (ISS-025).
+        review_ticks=18,
         is_contact=True,
         ends_automation=False,
     ),

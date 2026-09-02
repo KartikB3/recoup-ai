@@ -13,7 +13,7 @@ Append-only. One entry per phase close. Newest at the bottom.
 |---|---|---|---|---|
 | 0 | Scaffold & long-lead items | ✅ done | ✅ met | `8233ff6`..`702f213` |
 | 1 | Generator, clock, ledger (zero AI) | ✅ done | ✅ met | `00b3409`..`7fb21ce` |
-| 2 | Policy engine + baseline + metrics | ⬜ not started | — | — |
+| 2 | Policy engine + baseline + metrics | ✅ done | ✅ met | `v0.1-submittable` |
 | 3 | LLM reasoner layer | ⬜ not started | — | — |
 | 4 | Razorpay live slice | ⬜ not started | — | — |
 | 5 | Dashboard | ⬜ not started | — | — |
@@ -234,6 +234,88 @@ and the metric table will show it.
 3. **`Proposer` is the only seam the agent arm needs.** Phase 3's reasoner satisfies the same Protocol the `NaiveChaser` does, and receives a snapshot rather than an `Invoice`, so it structurally cannot read ground truth.
 4. **ISS-021 is a live write-up obligation.** The fatigue parameters were calibrated so the baseline stays credible. A judge is entitled to ask how those numbers were chosen, and Phase 6 should answer it before being asked.
 5. **ISS-012 remains a Phase 4 risk.** Untyped `razorpay` responses mean the Phase 4 webhook signature-verification test against a known-good fixture is not optional.
+
+---
+
+## Phase 2 — Policy engine + baseline + metric table
+
+**Date:** 2026-09-02
+**Model/effort used:** GPT-5, high
+**Gate:** ✅ **met** — `recoup run --seed 42 --arm both` completed all three arms and wrote `runs/seed42/metrics.{json,md}`; `recoup replay seed42/{control,baseline,agent}` returned zero divergences for every arm. The full static and test gate is clean: ruff, `ruff format --check`, mypy strict over 51 source files, **180 tests**.
+**Commit / tag:** `v0.1-submittable`
+
+**What was built**
+
+- `policy/rules/` — ten pure rules in the documented fixed order: first veto wins and reductions compose.
+- `policy/engine.py` — stateful per-run `PolicyEngine`, with source-stamped verdicts and a configurable `MerchantPolicy`.
+- `policy/sources.py` + `docs/POLICY-SOURCES.md` — RBI and TRAI primary-source verification, scope caveats carried in data, and no unverified regulation in the engine.
+- `reasoner/fallback.py` — the deterministic Phase 2 agent proposer. It returns the same complete proposal shape the model layer will use, reads structured snapshots only, and deliberately leaves policy decisions to the engine.
+- `runner/batch.py`, `ledger/ledger.py`, `audit/replay.py` — ledger-aware adjudication and logged deferrals that replay exactly.
+- `metrics/compute.py` + `metrics/report.py` — the full three-arm scorecard in JSON and Markdown, including losses, held-out false interventions, separate human-queue causes, and a count for every rule (including zeroes).
+- `cli.py` — `recoup run` and `recoup metrics`; `--arm both` remains compatible and now means control + baseline + agent, with `--arm all` as the explicit spelling.
+- `runs/seed42/` — committed opening batch, append-only audit, closing position and summary for all three arms, plus parent-level metrics.
+- `tests/test_policy.py`, `tests/test_metrics.py` — direct checks for all ten rules and end-to-end checks for the metric, replay, ground-truth and no-LLM boundaries.
+
+**Key decisions**
+
+| Decision | Choice | Reasoning |
+|---|---|---|
+| Regulatory scope | The RBI 08:00–19:00 clause is an **adopted standard**, not a claimed legal obligation on trade receivables | The verified circular binds regulated lenders and their recovery agents. The caveat travels with every verdict so the honest version is the rendered version. |
+| TRAI time rule | Encode Schedule III's promotional default-OFF preference bands, not a fictional blanket ban | Primary-source verification disproved the project's original claim (ISS-024). Recoup sends service traffic, so this verified rule is correctly dormant on seed 42. |
+| Ground-truth boundary | Policy may read observable invoice state and prose fields, never simulation flags or archetypes | A perfect dispute detector would be leakage. The 23 remaining agent false interventions are a required honesty check, not a defect to tune away. |
+| Dispute handling | Visible disputes reduce to `ESCALATE_HUMAN`, rather than accumulating vetoes forever | It stops payer contact and places a live commercial objection in front of a person. |
+| Deferring vetoes | Store `defer_to_tick` on `PolicyVerdict`, pass it through the ledger, replay it from the row | “Not now” must say when. Recomputing the date in replay would repeat the ISS-017 mistake. |
+| Demonstrable contact window | `PHONE_FOLLOWUP.review_ticks` is 18, then the proposer spends one reminder at contact count 4 | The half-day shift creates a real 20:00 proposal. Without the following contact, the RBI rule still fires zero times (ISS-025). |
+| Simulated link budget | Off; Phase 4 live runs turn it on | Capping only the policy-governed agent at 30 while the bypass baseline sends 225 links would measure an artificial handicap. |
+| Metric denominator | Opening `amount_paise` from INTAKE rows | It pins recovery to the book as received and makes the persisted log, not a live object, the definition. |
+| CLI gate | `recoup run`, the installed console script | `python -m recoup.runner` had no module entry point and contradicted the already-frozen CLI surface. The plan now names the real command. |
+
+**Deviations from the plan**
+
+1. **`PolicyGate.adjudicate` gained the live `Ledger`.** Payer-level frequency spans invoices; rebuilding counts inside policy would duplicate the system of record and violate the replay lesson from ISS-017. The runner remains the only loop.
+2. **`PolicyVerdict.defer_to_tick` and `Ledger.record_action(next_review_override=...)` were added.** A veto at 20:00 otherwise returns on the same whole-day phase forever. The field is logged and replay consumes it rather than deciding again.
+3. **The comparison is three arms, not two.** `both` is retained as the gate-compatible alias for all three because the 49.3% do-nothing floor must appear in every scorecard.
+4. **The agent's terminal ladder has six decision rungs (five contacts, then STOP).** The post-phone reminder is load-bearing for the RBI behavioural check; the baseline's five-attempt definition is unchanged.
+
+**Numbers**
+
+| Metric | Control | Baseline | Agent |
+|---|---:|---:|---:|
+| Recovery rate | 49.3% | **62.3%** | 57.8% |
+| Recovered paise | 1,246,014,875 | **1,577,122,615** | 1,461,018,533 |
+| Records paid | 54 | **70** | 66 |
+| Contacts | **0** | 459 | 157 |
+| Payment links | 0 | 225 | 71 |
+| False interventions | **0** | 104 | 23 |
+| Policy vetoes | 0 | 0 | 231 |
+| Agent-selected escalations | 0 | 0 | 16 |
+| Human queue from payer response | **0** | 28 | 5 |
+| Unresolved / written off | 72 / 0 | 37 / 19 | 60 / 0 |
+
+The agent gives up 4.6 recovery points versus the baseline and reports that loss. In return it uses **65.8% fewer contacts**, makes **77.9% fewer false interventions**, and leaves only 5 payer-caused human-queue cases instead of 28. It still beats doing nothing by 8.5 recovery points.
+
+Recorded agent rule firings: `payer-contact-spacing` 172, `payer-contact-frequency` 51, `visible-dispute` 16, **`rbi-contact-hours` 8**. The other six are explicit zeroes; three are structurally dormant and directly unit-tested. Policy vetoes are 231 because the 16 dispute firings are modifications, not vetoes.
+
+**Gate evidence**
+
+| Check | Result |
+|---|---|
+| `recoup run --seed 42 --arm both` | exit 0; three arm directories + `metrics.json` + `metrics.md` |
+| `recoup replay seed42/agent` | 813 rows, chain verified, 126 records, 0 divergences |
+| `recoup replay seed42/baseline` | 1,153 rows, chain verified, 126 records, 0 divergences |
+| `recoup replay seed42/control` | 1,506 rows, chain verified, 126 records, 0 divergences |
+| Phase 1 regression | control and baseline figures match the committed Phase 1 artifacts exactly |
+| No-LLM execution | fresh-process import guard fails on any `anthropic` import; full agent run passes with the key empty |
+| `ruff check` / `ruff format --check` | clean |
+| `mypy --strict` | clean, 51 source files |
+| `pytest` | 180 passed |
+
+**Carried forward**
+
+1. Phase 3 replaces the fixed per-record diagnosis with structured model output and a disk cache; the deterministic proposer remains the no-key fallback and its execution path must stay green.
+2. Phase 5 renders `rule_source`, including the verified flag and the RBI scope caveat, on the invoice timeline. The data is already present on every firing row.
+3. The public GitHub push is still deliberately deferred to the user. The local tag is the recoverable floor.
+4. RBI e-mandate verification remains P1 and is required only if the mandate lane ships.
 
 ---
 

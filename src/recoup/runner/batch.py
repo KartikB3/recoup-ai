@@ -124,7 +124,9 @@ class PolicyGate(Protocol):
     before anything is layered on it.
     """
 
-    def adjudicate(self, record: Invoice, proposal: Proposal, tick: Tick) -> PolicyVerdict:
+    def adjudicate(
+        self, record: Invoice, proposal: Proposal, tick: Tick, ledger: Ledger
+    ) -> PolicyVerdict:
         """Approve, modify or veto."""
         ...
 
@@ -354,7 +356,7 @@ def _take_decisions(
         verdict: PolicyVerdict | None = None
         final: Intervention | None = proposal.intervention
         if policy is not None:
-            verdict = policy.adjudicate(record, proposal, tick)
+            verdict = policy.adjudicate(record, proposal, tick, ledger)
             final = verdict.final if verdict.verdict is not VerdictKind.VETOED else None
 
         result.decisions += 1
@@ -363,7 +365,13 @@ def _take_decisions(
             # Vetoed. The review slot is spent, no contact is made, no budget
             # moves, and the state does not change. Logged in full, because the
             # veto is the most interesting row in the file.
-            action = ledger.record_action(record, proposal.intervention, tick, executed=False)
+            action = ledger.record_action(
+                record,
+                proposal.intervention,
+                tick,
+                executed=False,
+                next_review_override=verdict.defer_to_tick if verdict else None,
+            )
             result.vetoed += 1
             log.append(
                 kind=RowKind.DECISION,

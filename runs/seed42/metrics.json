@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "definitions": {
+    "recovery_denominator": "billed_paise on the INTAKE rows",
+    "false_intervention": "an executed contact on a record carrying DISPUTED or ALREADY_PAID_UNRECONCILED ground truth",
+    "automated_escalation": "an executed ESCALATE_HUMAN decision",
+    "payer_human_queue": "a final HUMAN_QUEUE record not placed there by an ESCALATE_HUMAN decision",
+    "rule_firing": "the rule_id recorded on a decision row (first veto or first modification)"
+  },
+  "arms": {
+    "control": {
+      "total_records": 126,
+      "paid_records": 54,
+      "billed_paise": 2529740640,
+      "recovered_paise": 1246014875,
+      "recovered_display": "Rs 1,24,60,148.75",
+      "recovery_rate_percent": "49.25",
+      "contacts_made": 0,
+      "contacts_per_rupee_recovered": "0.00000000",
+      "false_interventions": 0,
+      "policy_vetoes": 0,
+      "automated_escalations": 0,
+      "payer_human_queue": 0,
+      "unresolved_records": 72,
+      "written_off_records": 0,
+      "rule_firings": {
+        "high-value-escalation": 0,
+        "invoice-link-cap": 0,
+        "link-budget": 0,
+        "nothing-outstanding": 0,
+        "payer-contact-frequency": 0,
+        "payer-contact-spacing": 0,
+        "rbi-contact-hours": 0,
+        "trai-message-category": 0,
+        "trai-promotional-window": 0,
+        "visible-dispute": 0
+      }
+    },
+    "baseline": {
+      "total_records": 126,
+      "paid_records": 70,
+      "billed_paise": 2529740640,
+      "recovered_paise": 1577122615,
+      "recovered_display": "Rs 1,57,71,226.15",
+      "recovery_rate_percent": "62.34",
+      "contacts_made": 459,
+      "contacts_per_rupee_recovered": "0.00002910",
+      "false_interventions": 104,
+      "policy_vetoes": 0,
+      "automated_escalations": 0,
+      "payer_human_queue": 28,
+      "unresolved_records": 37,
+      "written_off_records": 19,
+      "rule_firings": {
+        "high-value-escalation": 0,
+        "invoice-link-cap": 0,
+        "link-budget": 0,
+        "nothing-outstanding": 0,
+        "payer-contact-frequency": 0,
+        "payer-contact-spacing": 0,
+        "rbi-contact-hours": 0,
+        "trai-message-category": 0,
+        "trai-promotional-window": 0,
+        "visible-dispute": 0
+      }
+    },
+    "agent": {
+      "total_records": 126,
+      "paid_records": 66,
+      "billed_paise": 2529740640,
+      "recovered_paise": 1461018533,
+      "recovered_display": "Rs 1,46,10,185.33",
+      "recovery_rate_percent": "57.75",
+      "contacts_made": 157,
+      "contacts_per_rupee_recovered": "0.00001075",
+      "false_interventions": 23,
+      "policy_vetoes": 231,
+      "automated_escalations": 16,
+      "payer_human_queue": 5,
+      "unresolved_records": 60,
+      "written_off_records": 0,
+      "rule_firings": {
+        "high-value-escalation": 0,
+        "invoice-link-cap": 0,
+        "link-budget": 0,
+        "nothing-outstanding": 0,
+        "payer-contact-frequency": 51,
+        "payer-contact-spacing": 172,
+        "rbi-contact-hours": 8,
+        "trai-message-category": 0,
+        "trai-promotional-window": 0,
+        "visible-dispute": 16
+      }
+    }
+  }
+}

@@ -5,7 +5,7 @@ Two horizons, kept deliberately separate. Do not let the second one leak into th
 
 **Maintenance:** re-scope at the close of every phase. Move completed items out of §1, move slipped items down, and add anything newly discovered.
 
-Last updated: 2026-09-02 - **Phase 1 complete, gate met.** Byte-identical batch verified across three processes; both arms run 112 ticks with no LLM and no policy engine; replay reconstructs both from the log alone with 0 divergences. 164 tests. **Phase 2 is next, and it is the one that matters** - it ends with a complete, submittable system tagged `v0.1-submittable`. The public push remains the only outstanding Phase 0 item.
+Last updated: 2026-09-02 — **Phase 2 complete, gate met.** The verified ten-rule engine runs end to end across control, baseline and agent; all three logs replay with zero divergences; the full metric table is committed under `runs/seed42/`; 180 tests are green. The recoverable floor is tagged `v0.1-submittable`. **Phase 3 is next.** The public push remains deliberately deferred to the user.
 
 ---
 
@@ -15,34 +15,19 @@ Last updated: 2026-09-02 - **Phase 1 complete, gate met.** Byte-identical batch 
 
 | # | Item | Phase | State |
 |---|---|---|---|
-| 1 | ~~Seeded generator, 120+ records, documented distribution~~ | 1 | ✅ 126 records, `docs/SEED-DISTRIBUTION.md` |
-| 2 | ~~Free-text corpus~~ | 1 | ✅ **54 templates, 8,333 renderings** — comfortably past the 25–30 ask |
-| 3 | ~~Virtual clock + ledger state machine~~ | 1 | ✅ plus the seeded adjudicator |
-| 4 | ~~Append-only audit log + replay acceptance test~~ | 1 | ✅ 0 divergences, both arms, 126×112 |
-| 5 | TRAI + RBI Fair Practices citations verified at source | 2 | ⬜ |
-| 6 | Policy engine that vetoes, with sources rendered in the UI — **depends on #5** | 2 | ⬜ |
-| 7 | ~~Naive baseline chaser on the same seed~~ | 2 | ✅ **landed early in Phase 1** — 459 contacts, 62.3% recovered |
-| 8 | Full metric table, both arms, losses included | 2 | ⬜ |
-| 9 | **Gate: `v0.1-submittable` tagged — complete system, no LLM** | 2 | ⬜ |
-| 10 | Structured-output reasoner + input-hash cache + deterministic fallback | 3 | ⬜ |
+| 10 | Structured-output reasoner + input-hash cache; preserve the deterministic fallback that landed in Phase 2 | 3 | ⬜ |
 | 11 | Batch-level insight (§7b) — the cluster event. **Built in Phase 3; wired to the dashboard in Phase 6.** | 3 → 6 | ⬜ |
-| 12 | Dashboard: batch summary, invoice timeline, raw audit | 5 | ⬜ |
-| 13 | README with the Razorpay boundary and metric table above the fold | 6 | ⬜ |
+| 12 | Dashboard: batch summary, invoice timeline, raw audit, and rule sources/caveats | 5 | ⬜ |
 | 14 | Seven submission-form answers drafted | 6 | ⬜ |
 | 15 | Five-minute video | 7 | ⬜ |
-
-**Newly discovered in Phase 1, now P0:**
-
-| # | Item | Phase | State |
-|---|---|---|---|
-| 16 | Wire `PolicyGate` into `run_batch` — the Protocol and the veto path already exist and are logged; Phase 2 supplies the implementation | 2 | ⬜ |
-| 17 | The agent arm's `Proposer` — same Protocol the baseline satisfies, receives a snapshot so it structurally cannot read ground truth | 3 | ⬜ |
+| 17 | Structured-output agent proposer over the same snapshot-only Protocol; the Phase 2 fallback already satisfies it | 3 | ⬜ |
 | 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ⬜ |
+| 19 | Create the public GitHub repository and push | user decision | ⬜ local history and tag are ready |
 
-`AlwaysWait`, the do-nothing control arm, was added in Phase 1 and is not in the
-original plan. It recovers **49.3%** of the book with zero contacts. Every
-metric table from Phase 2 on must report it alongside the other two arms, or
-the comparison flatters whichever arm is being sold.
+The three-arm comparison is now a standing contract. `AlwaysWait` recovers
+49.3% with zero contacts, the baseline recovers 62.3% with 459 contacts, and
+the deterministic agent recovers 57.8% with 157 contacts. Every later table
+must keep all three columns and the losses.
 
 ### P1 — turns solid into winning
 
@@ -65,6 +50,20 @@ Realistically none of these ship in seven days solo. They are listed so that "we
 ### Permanently out of scope
 
 Real money · real customers · real PII · anything where the LLM decides a number · anything requiring Razorpay account feature activation.
+
+---
+
+## Completed gates
+
+| # | Item | Evidence |
+|---|---|---|
+| 1–4 | Generator, corpus, clock, ledger, append-only audit and replay | Phase 1; 126 records, 54 templates, zero replay divergences |
+| 5 | TRAI + RBI citations verified at the issuing body | `docs/POLICY-SOURCES.md`; ISS-024 and ISS-025 |
+| 6, 16 | Policy engine and `PolicyGate` wiring | Ten fixed-order rules; sources attached to firing verdicts; UI rendering remains part of #12 |
+| 7 | Naive baseline on the same seed | 62.3% recovered, 459 contacts |
+| 8 | Full three-arm metric table, losses included | `runs/seed42/metrics.{json,md}` |
+| 9 | Complete no-LLM floor | `v0.1-submittable` |
+| 13 | README boundary and metric table above the fold | Landed early at Phase 2 close |
 
 ---
 

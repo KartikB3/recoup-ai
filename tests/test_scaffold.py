@@ -105,15 +105,15 @@ def test_command_is_registered(command: str) -> None:
     assert result.exit_code == 0, result.output
 
 
-def test_unimplemented_commands_fail_loudly() -> None:
+def test_remaining_unimplemented_command_fails_loudly() -> None:
     """A not-yet-built command must exit non-zero and point at the plan.
 
     Silently succeeding with no output is how a phase gets marked done by
     accident.
     """
-    result = runner.invoke(app, ["metrics", "some-run"])
+    result = runner.invoke(app, ["dashboard"])
     assert result.exit_code == 1
-    assert "Phase 2" in result.output
+    assert "Phase 5" in result.output
     assert "IMPLEMENTATION-PLAN" in result.output
 
 

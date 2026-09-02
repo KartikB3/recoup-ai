@@ -310,6 +310,68 @@ These are 🔵. None of them may reach the video unverified. The `RuleSource.ver
 
 *Append below as they happen. Do not wait for phase close.*
 
+---
+
+### ISS-024 · 🟠 The TRAI rule this project intended to cite does not exist in the form it was claimed
+
+**Phase:** 2
+**What happened:** `docs/POLICY-SOURCES.md` carried, from ISS-007, the rule *"promotional-category messages only 10:00–21:00 IST"*, attributed to TRAI's TCCCPR and flagged unverified because the source was a vendor blog. Phase 2 read the regulation itself. **TCCCPR contains no such prohibition.** There is no blanket promotional time window anywhere in it. What it contains is a customer *preference* register: Schedule III of TCCCPR 2018 lists nine opt-out time bands, and Note-1 to that table says bands (i), (ii), (iii) and (ix) — `00:00–06:00`, `06:00–08:00`, `08:00–10:00` and `21:00–24:00` — "shall be default OFF for all customers irrespective of the status of registration of customer". The complement of those four bands is 10:00–21:00.
+
+**Why it matters:** the number in the blog is right and its justification is wrong, which is the most dangerous shape a citation can have — it survives a spot check and fails a follow-up question. The true rule is a **default customer preference**, revocable by the customer switching a band on, and it binds **only promotional** communication; Note-4 to the BLOCK PROMO option puts service, transactional and government messages explicitly outside it. Recoup sends no promotional traffic at all, so under the blog's version of the rule the engine would have been enforcing a fictional ban on itself, and under the real version the rule correctly never fires. Invariant 7 exists for exactly this, and this is the first time it has actually caught something.
+
+**What we tried:** four fetches at trai.gov.in returned nothing usable — the TCCCPR landing page, "Advice to Senders" and the UCC FAQ category page all discuss the preference facility without quoting the bands, and both gazette PDFs came back as undecoded binary through the fetcher (5.7 MB and 1.8 MB). The answer only appeared after downloading both PDFs and extracting the text locally with `pypdf`, then grepping for the band table. **Lesson for Phase 4 and 6: an Indian regulator's primary source is a gazette PDF, and a summarising fetch will not read it. Budget for downloading and extracting.**
+
+**Design consequence:** the rule ships as `trai-promotional-window` citing TCCCPR 2018 Schedule III with `verified=True`, and its `scope_caveat` states in the data that it is a default preference rather than a prohibition. `docs/POLICY-SOURCES.md` was rewritten with the verbatim Note-1 text. The rule is structurally dormant on this batch and that is documented rather than engineered around. ISS-007 is closed by this entry.
+
+**Also verified in the same pass, and worth recording so nobody re-researches them:** explicit consent taken to complete a transaction is valid for a maximum of seven days; a sender may re-acquire consent only after ninety days from an opt-out; the `-P`/`-S`/`-T`/`-G` header suffixes are confirmed verbatim; and a Transactional message is one sent "in response to Customer initiated transaction **within thirty minutes** of the transaction" — which independently confirms the Phase 1 reasoning that a payment link chasing a 40-day-old bill is a Service message and never `-T`.
+**Status:** RESOLVED — and it closes ISS-007, which was the reason the rule was flagged.
+
+---
+
+### ISS-025 · 🟠 Every decision in every run landed at 08:00, so both contact-window rules were unable to fire
+
+**Phase:** 2
+**What happened:** the tick grid is offset to 08:00 precisely so that the RBI window (08:00–19:00) and the TRAI default bands (10:00–21:00) disagree at 08:00 and 20:00 — that offset is a documented Phase 1 decision, taken so each rule would have its own visible moment in the timeline view. It does not work. Intake sets `next_review_tick = 0` for all 126 records, and **every** `review_ticks` value in `domain/interventions.py` (8, 12, 16) is a whole number of virtual days. A record's review phase is therefore fixed at intake and never changes. Measured on the committed Phase 1 artifacts: 495 of 495 baseline decisions and 1,321 of 1,321 control decisions fall at hour 08. Not most. All of them.
+
+**Why it matters:** the headline deliverable of Phase 2 is a policy engine that vetoes with a verified citation on screen. The RBI contact-hour rule is the only regulatory rule on this batch that *can* fire, and it was sitting behind a phase lock that guaranteed it never would. The engine would have been correct, verified, tested, and provably dead. Worse, it would have looked fine: no test failed, and "0 contact-hour vetoes" reads as compliance rather than as a rule that cannot fire.
+
+**What we tried, and rejected:**
+
+1. *Stagger `next_review_tick` in the generator.* Correct, and far too expensive. It changes `batch.json`, so the SHA-256 published in `docs/SEED-DISTRIBUTION.md` changes, the three committed run artifacts stop matching it, and — because the tick is in the adjudicator's hash key — every outcome in the book is redrawn. The 49.3% and 62.3% figures quoted in `CLAUDE.md`, the build log and the README would all have to be re-derived, and the Phase 1 gate re-verified, in the phase that is not allowed to slip.
+2. *Stagger at intake inside `run_batch`.* Cheaper, and it breaks replay: `audit.replay` starts from `batch.json`, where `next_review_tick` is 0, so any record the run never acted on would reconstruct with a different review tick. Sharing a staggering helper between the runner and replay is the ISS-017 mistake wearing a different hat.
+3. *Give `WAIT` an odd cadence.* Both Phase 1 arms use `WAIT`, so this has the same blast radius as option 1.
+
+**Design consequence:** `PHONE_FOLLOWUP.review_ticks` moved from 16 to **18** — four and a half virtual days rather than four. It is the most intrusive intervention in the space and earns the longest rest, and being a half-day rather than a whole one is what takes a record off the 08:00 phase lock: after a phone call the record's reviews land at 20:00, where the RBI rule bites and the TRAI bands do not. **Neither Phase 1 arm ever proposes `PHONE_FOLLOWUP`**, so the committed artifacts, the published batch hash and every number in the docs are untouched. This is a modelling choice made so that a verified rule is demonstrable, and calling it anything else would be dishonest — the same standard ISS-021 set for the fatigue parameters.
+
+Second consequence: a veto had to become able to reschedule. `record_action(executed=False)` pushes the next review by the *proposed* intervention's interval, which is a whole number of days — so a record vetoed at 20:00 would return at 20:00 and be blocked for the rest of the run. `PolicyVerdict` gained `defer_to_tick`, the ledger gained a `next_review_override`, and replay reads the deferral back out of the logged verdict. A contact-window veto now means "not now", and says when.
+
+**The general lesson:** a rule that has never fired has not been tested, however green its unit test is. The phase lock was found by counting decision hours in a committed log, not by any assertion in the suite. Every rule in `RULE_ORDER` now has its firing count reported in the metric table, so a rule that silently stops firing is visible rather than inferred.
+**Status:** RESOLVED.
+
+---
+
+### ISS-026 · 🟠 The Phase 2 gate completed the run but failed while printing a valid UTF-8 report on Windows
+
+**Phase:** 2
+**What happened:** the first full `recoup run --seed 42 --arm both` execution produced all three arm artifacts and both metric files, then exited non-zero at the final display step. `metrics.md` correctly used the `₹` label required by the scorecard, but this PowerShell host exposed a CP-1252 stdout stream; Typer raised `UnicodeEncodeError` when it tried to echo the already-written UTF-8 file.
+
+**Why it matters:** a command that writes correct output and then crashes is still a failed gate. It is especially easy to miss here because every substantive computation had completed and the artifact on disk looked fine.
+
+**Resolution:** artifacts remain UTF-8 and keep `₹`. The CLI display path translates that glyph to `Rs ` before writing to the host console, including `recoup metrics --fmt markdown`. This changes presentation only; no stored data or money calculation changes.
+**Status:** RESOLVED.
+
+---
+
+### ISS-027 · 🟠 A composed dispute escalation was vetoed by a later rule inspecting the stale original draft
+
+**Phase:** 2
+**What happened:** the first full agent probe logged **151 `trai-message-category` vetoes**, even though the deterministic proposer always drafts Service-category messages correctly. `visible-dispute` had already reduced some contacts to `ESCALATE_HUMAN`, but the category rule compared the original Service draft against the *modified* non-message intervention, concluded that an escalation permits no DLT category, and vetoed the whole decision. The human escalation never happened.
+
+**Why it matters:** “modifications compose” means every later rule judges the current intervention, including the fact that a reduced non-contact action will never send the original draft. Looking at one current field and one stale field created a hybrid proposal that never existed. A unit test of either rule alone passed; the per-rule firing count exposed the impossible batch-level pattern.
+
+**Resolution:** the category rule returns `None` once an earlier rule has reduced the current action to an intervention with no message category. A composition test now proves that reductions continue in order, preserve the first modification reason, and stop at the first later veto. The corrected run records 16 visible-dispute escalations and zero category-rule firings, as designed.
+**Status:** RESOLVED.
+
 
 
 ---

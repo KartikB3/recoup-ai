@@ -1,10 +1,10 @@
 # Recoup
 
-**An autonomous receivables recovery agent where the LLM reasons and drafts, but every money action and every customer contact passes a deterministic policy engine that can veto it — and the whole thing is measured against a naive baseline on the same seeded batch.**
+**An autonomous receivables recovery agent where every money action and customer contact passes a deterministic, source-carrying policy engine that can veto it — measured against both a naive chaser and a do-nothing control on the same seeded batch.**
 
 Razorpay Buildathon · Track 03: AI Revenue Recovery · solo build.
 
-> 🚧 **Phase 0.** Scaffold only. No results yet. This README is structured for the judge-facing version: the boundary and the metric table go above the fold, because judges skim. Everything marked *(pending)* gets filled in as the phases land — see `docs/ROADMAP.md` for what is left.
+> ✅ **`v0.1-submittable`.** The complete deterministic floor is tagged: 126 records, three arms, verified policy sources, replayable logs, JSON/Markdown metrics, and no LLM on the execution path. The structured model layer is Phase 3 upside, not a dependency of this result.
 
 ---
 
@@ -22,28 +22,29 @@ Each of those is documented with its evidence and its design consequence in **[`
 
 ---
 
-## Baseline vs agent
+## Control vs baseline vs agent
 
-Same seeded batch, same ledger, same virtual clock. One run through a naive fixed-schedule chaser (contact every 3 days until paid or 5 attempts), one through the agent.
+Same seeded batch, ledger, clock and simulated world. Control always waits. The baseline contacts every three days until paid or five attempts. The deterministic agent proposes from observable ledger facts and every proposal passes the policy engine.
 
-| Metric | Baseline | Agent |
-|---|---|---|
-| Recovery rate | *(pending)* | *(pending)* |
-| ₹ recovered | *(pending)* | *(pending)* |
-| Contacts made | *(pending)* | *(pending)* |
-| Contacts per ₹ recovered | *(pending)* | *(pending)* |
-| **False interventions** (chased an already-paid or disputed invoice) | *(pending)* | *(pending)* |
-| Policy vetoes | — | *(pending)* |
-| Escalated to human | *(pending)* | *(pending)* |
-| Unresolved / written off | *(pending)* | *(pending)* |
+| Metric | Control | Baseline | Agent |
+|---|---:|---:|---:|
+| Recovery rate | 49.3% | **62.3%** | 57.8% |
+| ₹ recovered | Rs 1,24,60,148.75 | **Rs 1,57,71,226.15** | Rs 1,46,10,185.33 |
+| Contacts made | **0** | 459 | 157 |
+| Contacts per ₹ recovered | **0.00000000** | 0.00002910 | 0.00001075 |
+| **False interventions** | **0** | 104 | 23 |
+| Policy vetoes | 0 | 0 | 231 |
+| Escalated to human (agent-selected) | 0 | 0 | 16 |
+| Human queue from payer response | **0** | 28 | 5 |
+| Unresolved / written off | 72 / 0 | 37 / 19 | 60 / 0 |
 
-The rows where the agent loses are reported too. An honest exception list is explicitly in the track's bar.
+The agent loses 4.6 recovery points to the baseline and that loss stays in the table. It uses **65.8% fewer contacts**, makes **77.9% fewer false interventions**, and still beats the do-nothing floor by 8.5 points. Definitions and all ten per-rule firing counts, including zeroes, are in [`runs/seed42/metrics.md`](runs/seed42/metrics.md).
 
 ---
 
 ## Why not just a rules engine?
 
-The LLM reads unstructured signal — payer notes, email replies, dispute reasons, free-text promise-to-pay — and drafts communication. **Every number, every rupee amount, and every go/no-go decision is deterministic.**
+The Phase 2 tag deliberately uses a deterministic fallback so the complete system works with no key. Phase 3 adds a structured-output model to read payer notes, replies, dispute reasons and promise language. **Every number, every rupee amount, and every go/no-go decision remains deterministic.**
 
 If a feature cannot survive that sentence, it is not in the build.
 
@@ -73,13 +74,13 @@ cp .env.example .env                      # fill in Razorpay TEST keys
 
 recoup generate --seed 42                 # Phase 1
 recoup run --seed 42 --arm both           # Phase 2
-recoup metrics <run-id>                   # Phase 2
+recoup metrics seed42                     # recompute from stored artifacts
 recoup dashboard                          # Phase 5
 ```
 
 `recoup check-razorpay` creates one test-mode Payment Link to confirm credentials. It costs one unit of the 30-link budget.
 
-The full batch runs with `ANTHROPIC_API_KEY` unset — the reasoner has a disk cache and a deterministic fallback path, because the API will be down exactly when the video is being recorded.
+The full batch runs with `ANTHROPIC_API_KEY` empty or unset. In `v0.1-submittable` the agent is the deterministic fallback; Phase 3 adds a disk-cached model path without changing the policy, runner or replay contracts.
 
 ---
 
@@ -91,7 +92,7 @@ The full batch runs with `ANTHROPIC_API_KEY` unset — the reasoner has a disk c
 | `src/recoup/generator/` | Seeded batch generator + the free-text corpus the LLM actually reads |
 | `src/recoup/ledger/` | Virtual clock, state machine, seeded outcome adjudication |
 | `src/recoup/policy/` | **The policy engine.** Rules, ordering, and their citations |
-| `src/recoup/reasoner/` | Structured-output LLM layer, cache, deterministic fallback |
+| `src/recoup/reasoner/` | Deterministic fallback now; structured-output model and cache in Phase 3 |
 | `src/recoup/executor/` | Simulated and live-Razorpay execution, scarce-budget allocation |
 | `src/recoup/audit/` | Append-only log and its replay acceptance test |
 | `src/recoup/baseline/` | The naive chaser the agent is measured against |
