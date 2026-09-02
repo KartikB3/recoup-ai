@@ -5,7 +5,7 @@ Two horizons, kept deliberately separate. Do not let the second one leak into th
 
 **Maintenance:** re-scope at the close of every phase. Move completed items out of §1, move slipped items down, and add anything newly discovered.
 
-Last updated: 2026-09-02 · Nothing built yet.
+Last updated: 2026-09-02 · Phase 0 scaffold committed (`8233ff6`). Phase 0 gate still open on three items that need your Razorpay account and a public push — see docs/BUILD-LOG.md, "Carried forward".
 
 ---
 

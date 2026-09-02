@@ -157,7 +157,38 @@ These are 🔵. None of them may reach the video unverified. The `RuleSource.ver
 
 ## Build-time issues
 
-*Nothing yet — Phase 0 has not started. Append below as they happen.*
+### ISS-011 · 🟡 Ruff UP042 / B008 both fire on idiomatic Typer code
+
+**Phase:** 0
+**What happened:** With `select = ["E","F","I","UP","B","SIM","RUF"]`, ruff flagged five errors in `cli.py`: `UP042` on `class Arm(str, Enum)` and `B008` on every `typer.Option(...)` default.
+**What we did:** `UP042` was a real improvement — switched to `enum.StrEnum`, available since 3.11 and what `requires-python` already asks for. `B008` is a false positive against the Typer framework idiom (options *must* be call-valued defaults), so it is suppressed per-file with a comment saying why, rather than dropping `B` from the whole ruleset.
+**Design consequence:** None. Recorded because "we suppressed a lint rule" is the kind of thing that looks unprincipled at review time unless the reason is written down at the moment it happened.
+**Status:** RESOLVED.
+
+---
+
+### ISS-012 · 🟡 The `razorpay` Python SDK ships no type stubs
+
+**Phase:** 0
+**What happened:** `mypy --strict` fails on `import razorpay` — *"module is installed, but missing library stubs or py.typed marker"*.
+**What we did:** Narrow override in `pyproject.toml` for `razorpay.*` only. Strict mode stays on everywhere else.
+**Why it matters later:** Phase 4 touches this SDK for payment links and webhook signature verification, and that is the one place in the build where correctness is absolute. Untyped SDK responses mean the type checker will not catch a wrong field name there — so the Phase 4 signature-verification test against a known-good fixture is not optional.
+**Design consequence:** None yet. Flagged as a Phase 4 risk.
+**Status:** RESOLVED for now, revisit in Phase 4.
+
+---
+
+### ISS-013 · 🟡 Heredoc authoring of docs with mixed quoting is a time sink
+
+**Phase:** 0
+**What happened:** Two attempts at writing multi-file content through shell heredocs failed on quote parsing before the approach was changed.
+**What we did:** Long-form content goes through direct file writes; batches of generated files go through a short Python script. Shell heredocs are reserved for short, quote-free content.
+**Design consequence:** None. Noted so the same twenty minutes is not spent again in Phase 1, which writes a 25–30 template free-text corpus.
+**Status:** RESOLVED.
+
+---
+
+*Append below as they happen. Do not wait for phase close.*
 
 ---
 

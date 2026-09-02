@@ -3,7 +3,7 @@
 **Track 03: AI Revenue Recovery · Razorpay Buildathon · Solo · ~7 days**
 Companion to `recoup-build-spec.md` (the *what*). This is the *how*.
 
-Status: **Phase 0 not started.**
+Status: **Phase 0 in progress** — scaffold committed (`8233ff6`); gate open on the Razorpay support email, the credentials smoke test, and the public push.
 Last updated: 2026-09-02
 
 ---
@@ -373,9 +373,9 @@ This protocol also lives in `CLAUDE.md`, so it survives context resets.
 
 | Item | Phase | Status |
 |---|---|---|
-| Razorpay Support — raise the 30-link cap | 0 | not started |
+| Razorpay Support — raise the 30-link cap | 0 | **not started — yours, do it first** |
 | TRAI promotional-messaging window — verify at trai.gov.in | 2 | not started |
 | RBI Fair Practices 08:00–19:00 contact rule — verify at rbi.org.in | 2 | not started |
 | RBI E-mandate Framework 2026 — title, date, provisions | 6 (P1, mandate lane only) | not started |
 | Refunds API behaviour in test mode | 4, only if used | not started |
-| Does the buildathon supply a dataset? | 0 | assume not; own the generator |
+| Does the buildathon supply a dataset? | 0 | assumed not; the generator is ours |
