@@ -1,0 +1,38 @@
+# --- Private working material: NOT for the public repo ---------------------
+# Contains build strategy and competitive reasoning. Kept locally on purpose.
+# See docs/IMPLEMENTATION-PLAN.md Phase 0, item 6.
+chat_history.txt
+docs/research/
+
+# --- Secrets ---------------------------------------------------------------
+.env
+.env.local
+*.pem
+
+# --- Python ----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Run artifacts ---------------------------------------------------------
+# runs/ IS committed: the audit logs and metric tables are the evidence.
+# Only scratch output is ignored.
+runs/**/scratch/
+*.db-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# --- Tooling / OS ----------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
