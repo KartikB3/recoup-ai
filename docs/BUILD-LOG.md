@@ -319,6 +319,83 @@ Recorded agent rule firings: `payer-contact-spacing` 172, `payer-contact-frequen
 
 ---
 
+## Phase 2 audit hardening — Phase 3 readiness
+
+**Date:** 2026-09-03
+**Model/effort used:** Codex
+**Gate:** ✅ met — four canonical runs completed and replayed with zero
+divergences; ruff, format check, mypy strict and 183 tests are green.
+**Commit / tag:** post-tag hardening commit; `v0.1-submittable` deliberately
+left at the original recoverable floor.
+
+**What was built**
+
+- `POLICY_BASELINE`: the exact `NaiveChaser` behind `PolicyEngine`, holding the
+  proposer constant so policy value and proposer value can be measured
+  separately.
+- Metrics schema v2: record recovery, payment links, false-intervention
+  decomposition, regulatory/merchant veto provenance, modifications,
+  deferrals, STOP decisions, policy-bypass state and a reason beside every zero
+  rule count.
+- Regulatory verification semantics: `bool` for regulatory sources and
+  `None`/N/A for merchant policy, enforced in the domain model.
+- Executable documentation contracts: the README’s 126-record command is
+  tested against the published seed-42 SHA-256.
+- A regression test binding the ₹5,00,000 high-value threshold to the
+  generator calibration.
+
+**Key decisions**
+
+| Decision | Choice | Reasoning |
+|---|---|---|
+| Fourth arm | Identical naive proposer + fresh policy engine | Baseline → policy baseline isolates policy; policy baseline → agent isolates proposer. |
+| Dormant rules | Annotate their actual run state | `bypassed`, disabled, defensive and no triggering proposal are not interchangeable zeroes. |
+| Invoice cap | Do not manufacture a firing | Three sent links are below the rule’s trigger; it modifies an attempted fourth link, which neither ladder proposes. |
+| Veto provenance | Count VETOED rows only; show modifications separately | The agent has 223 merchant + 8 regulatory vetoes, not 239 merchant vetoes. The 16 dispute events are modifications. |
+| Zero write-offs | Label horizon truncation | Both policy arms end mid-ladder after deferrals and make zero STOP decisions. |
+| Phase 2 tag | Do not move it | The audit asked for post-tag improvements; the tagged floor remains recoverable. |
+
+**Numbers**
+
+| Metric | Control | Baseline | Baseline + policy | Agent |
+|---|---:|---:|---:|---:|
+| Value recovery | 49.3% | 62.3% | 56.5% | 57.8% |
+| Record recovery | 42.9% | 55.6% | 50.0% | 52.4% |
+| Records paid | 54 | 70 | 63 | 66 |
+| Recovered paise | 1,246,014,875 | 1,577,122,615 | 1,430,366,723 | 1,461,018,533 |
+| Contacts | 0 | 459 | 161 | 157 |
+| Payment links | 0 | 225 | 56 | 71 |
+| False interventions | 0 | 104 | 23 | 23 |
+| Disputed / already-paid false contacts | 0 / 0 | 76 / 28 | 8 / 15 | 8 / 15 |
+| Regulatory / merchant vetoes | bypassed | bypassed | 0 / 247 | 8 / 223 |
+| Policy modifications | bypassed | bypassed | 16 | 16 |
+| STOP decisions | 0 | 36 | 0 | 0 |
+| Unresolved / written off | 72 / 0 | 37 / 19 | 63 / 0 | 60 / 0 |
+
+**Gate evidence**
+
+| Check | Result |
+|---|---|
+| `recoup run --seed 42 --arm both` | exit 0; four arm directories + schema-v2 metric reports |
+| replay control / baseline / policy baseline / agent | 1,506 / 1,153 / 763 / 813 rows; all chains verified; zero divergences |
+| documented generate command | 126 records; SHA-256 `c903d91724d1c4566cb5c0a67ecf308eb6a0636772fe4a744a6b3f423188dd6f` |
+| `ruff check` / `ruff format --check` | clean |
+| `mypy --strict` | clean, 51 source files |
+| `pytest` | 183 passed |
+
+**Carried forward**
+
+1. Phase 3 begins from the four-arm contract and must preserve the no-key
+   deterministic path.
+2. The canonical agent run has 472 decision rows. Snapshot hash inputs change
+   every review, so the disk cache accelerates repeated runs and powers the
+   offline demo; it does not reduce first-run calls within a run.
+3. The two TRAI rules become meaningful guards once the Phase 3 model drafts
+   and classifies messages. Zeroes should remain zero unless the model errs.
+4. The public GitHub push remains the user’s decision.
+
+---
+
 ## Entry template — copy this for each phase
 
 ```markdown

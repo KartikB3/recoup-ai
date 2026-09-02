@@ -89,3 +89,10 @@ class NaiveChaser:
         if contacts_made >= LINK_AFTER_ATTEMPTS:
             return Proposal(intervention=Intervention.PAYMENT_LINK)
         return Proposal(intervention=Intervention.SOFT_REMINDER)
+
+
+class PolicyNaiveChaser(NaiveChaser):
+    """The identical naive ladder, isolated behind the policy engine."""
+
+    name = "naive-chaser-with-policy"
+    arm = Arm.POLICY_BASELINE

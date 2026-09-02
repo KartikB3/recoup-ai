@@ -28,7 +28,7 @@ import json
 from datetime import date, timedelta
 from typing import Any, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
 
 from recoup.domain.enums import (
     Archetype,
@@ -237,10 +237,11 @@ class LLMProposal(BaseModel):
 
 
 class RuleSource(BaseModel):
-    """Provenance of a policy rule. `verified` is load-bearing.
+    """Provenance of a policy rule. Regulatory verification is load-bearing.
 
-    A rule with `verified=False` renders in the dashboard with a visible chip
-    and never appears in the video. Merchant policy is labelled merchant policy.
+    A regulatory rule with `verified=False` renders with a visible chip and
+    never appears in the video. Verification is not applicable to merchant
+    policy, which is labelled merchant policy rather than given a false badge.
     `cited_date` is a real-world publication date and is a string on purpose,
     so it can never be confused with a `VirtualDate`.
     """
@@ -251,8 +252,17 @@ class RuleSource(BaseModel):
     title: str
     cited_date: str | None = None
     url: str | None = None
-    verified: bool = False
+    verified: bool | None = None
     scope_caveat: str | None = None
+
+    @model_validator(mode="after")
+    def verification_matches_source_kind(self) -> RuleSource:
+        """Require verification only where an issuing-body source exists."""
+        if self.kind is RuleKind.REGULATORY and self.verified is None:
+            raise ValueError("regulatory sources require a verification status")
+        if self.kind is RuleKind.MERCHANT and self.verified is not None:
+            raise ValueError("verification is not applicable to merchant policy")
+        return self
 
 
 class PolicyVerdict(BaseModel):

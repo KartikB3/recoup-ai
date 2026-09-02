@@ -10,12 +10,15 @@ different hash seeds.
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
 
+from recoup.cli import app
 from recoup.domain.enums import Archetype, Flag
 from recoup.generator.archetypes import BATCH_SIZE, CLUSTER_SIZE, PROFILES, total_records
 from recoup.generator.generate import (
@@ -32,6 +35,8 @@ _DUMP = (
     "from recoup.generator.generate import generate_batch, serialise;"
     "sys.stdout.write(serialise(generate_batch(42)))"
 )
+
+PUBLISHED_SEED_42_SHA256 = "c903d91724d1c4566cb5c0a67ecf308eb6a0636772fe4a744a6b3f423188dd6f"
 
 
 def _dump_with_hash_seed(hash_seed: str) -> str:
@@ -106,6 +111,22 @@ def test_written_file_has_no_carriage_returns(tmp_path: Path) -> None:
     """Windows must not turn the batch into a different file than Linux writes."""
     path, _ = write_batch(generate_batch(42), tmp_path)
     assert b"\r\n" not in path.read_bytes()
+
+
+def test_documented_quickstart_reproduces_the_published_batch(tmp_path: Path) -> None:
+    """The README command and published hash are one executable contract."""
+    result = CliRunner().invoke(
+        app,
+        ["generate", "--seed", "42", "--count", "126", "--out", str(tmp_path)],
+    )
+    assert result.exit_code == 0, result.output
+    generated = tmp_path / "seed-42-n126.json"
+    digest = hashlib.sha256(generated.read_bytes()).hexdigest()
+    assert digest == PUBLISHED_SEED_42_SHA256
+    assert f"sha256 {PUBLISHED_SEED_42_SHA256}" in result.output
+
+    readme = Path("README.md").read_text(encoding="utf-8")
+    assert "recoup generate --seed 42 --count 126" in readme
 
 
 def test_all_amounts_are_positive_integers() -> None:

@@ -376,6 +376,98 @@ Second consequence: a veto had to become able to reschedule. `record_action(exec
 
 ---
 
+### ISS-028 · 🟠 A numeric zero conflated bypassed, disabled, defensive and dormant rules
+
+**Phase:** Phase 2 audit hardening
+**What happened:** The canonical table printed `0` for every rule in control
+and baseline even though those arms bypass policy, then printed the same `0`
+for six policy-enabled rules. Those six represented four different states:
+`link-budget` was configured off; `nothing-outstanding` was a defensive guard
+behind terminal-state filtering; the two TRAI rules had no erroneous Phase 2
+draft to reject; and neither ladder attempted a fourth link or reached a
+policy-gated `STOP` within the horizon. The table made those distinctions
+invisible. It also combined 223 merchant vetoes and 8 regulatory vetoes into a
+single agent count, while 16 merchant modifications were described nearby and
+could be mistaken for vetoes. `MERCHANT_POLICY.verified=True` added a related
+category error: business configuration has no issuing-body fact to verify.
+
+**Why it matters:** A zero can mean compliance, no opportunity, disabled code
+or code that never ran. Presenting them identically weakened the behavioral
+evidence and risked a false “verified merchant policy” badge in Phase 5.
+
+**Resolution:** Metrics schema v2 carries `policy_enabled`, rule run-status
+notes, payment-link volume, record-count recovery, false-intervention
+subtypes, veto provenance, modifications, deferrals and STOP decisions.
+Bypassed cells render `bypassed`; disabled and structurally dormant rules say
+why. Merchant verification is now `None`/N/A and is enforced by the model.
+The report explicitly calls zero agent write-offs 28-day horizon truncation.
+
+**What we rejected:** Changing a proposer merely to make `invoice-link-cap`
+fire. The audit inferred that three baseline links were “exactly the trigger,”
+but the rule correctly fires on an **attempted fourth** link after three have
+already been sent. Neither Phase 2 ladder attempts one. The report records that
+truth rather than manufacturing a firing.
+**Status:** RESOLVED.
+
+---
+
+### ISS-029 · 🟠 The three-arm comparison changed policy and proposer together
+
+**Phase:** Phase 2 audit hardening
+**What happened:** Baseline used `NaiveChaser` with no policy while agent used
+the deterministic fallback with `PolicyEngine`. The headline 459 → 157 contact
+change therefore could not be attributed separately to policy enforcement and
+proposer behavior.
+
+**Why it matters:** Phase 3 replaces the proposer. Without a policy-controlled
+baseline, any claimed model gain would remain confounded.
+
+**Resolution:** Added `POLICY_BASELINE`, which runs the **identical**
+`NaiveChaser` through a fresh engine. Measured on seed 42: policy alone moves
+459 → 161 contacts, 104 → 23 false interventions and 62.3% → 56.5% value
+recovery. With policy held constant, the agent moves 161 → 157 contacts,
+63 → 66 paid records and 56.5% → 57.8% value recovery, with the same 23 false
+interventions. All four logs replay with zero divergences.
+**Status:** RESOLVED.
+
+---
+
+### ISS-030 · 🔴 Indian digit grouping made the high-value threshold ten times too large
+
+**Phase:** Phase 2 audit hardening
+**What happened:** `MerchantPolicy` documented ₹5,00,000 but encoded
+`5_000_000_00` paise — ₹50,00,000. The largest seeded invoice is below that,
+so no record could satisfy the rule even if `STOP` were reached.
+
+**Why it matters:** The rule’s prose, generator calibration and code disagreed
+while direct tests passed by overriding the threshold to zero.
+
+**Resolution:** The default is now `5_00_000_00` paise (50,000,000), and a
+regression test requires it to equal the generator’s
+`ESCALATION_REFERENCE_PAISE`. The canonical run still records zero because
+policy deferrals prevent either policy arm from reaching `STOP` in 28 days;
+that separate horizon condition is annotated in the report.
+**Status:** RESOLVED.
+
+---
+
+### ISS-031 · 🟠 The README quickstart regenerated a different book
+
+**Phase:** Phase 2 audit hardening
+**What happened:** `recoup generate --seed 42` used the CLI default of 120
+records while every canonical run used `BATCH_SIZE=126`. The published
+`c903d917…` digest was stated only in prose, repeating ISS-022’s failure mode.
+
+**Why it matters:** The first command a reviewer runs did not reproduce the
+book behind any reported number.
+
+**Resolution:** The CLI default is 126, the README spells out `--count 126`,
+and a CLI test executes that exact documented command and pins the complete
+SHA-256 `c903d91724d1c4566cb5c0a67ecf308eb6a0636772fe4a744a6b3f423188dd6f`.
+**Status:** RESOLVED.
+
+---
+
 ## Entry template
 
 ```markdown

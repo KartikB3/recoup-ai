@@ -117,10 +117,12 @@ def test_remaining_unimplemented_command_fails_loudly() -> None:
     assert "IMPLEMENTATION-PLAN" in result.output
 
 
-def test_default_seed_and_tick_count_match_the_plan() -> None:
-    """1 tick = 6 virtual hours; 112 ticks = 28 virtual days. Seed 42 everywhere."""
-    from recoup.cli import DEFAULT_SEED, DEFAULT_TICKS
+def test_default_seed_count_and_tick_count_match_the_plan() -> None:
+    """Published defaults are seed 42, 126 records, and a 28-day horizon."""
+    from recoup.cli import DEFAULT_COUNT, DEFAULT_SEED, DEFAULT_TICKS
+    from recoup.generator.archetypes import BATCH_SIZE
 
     assert DEFAULT_SEED == 42
+    assert DEFAULT_COUNT == BATCH_SIZE == 126
     assert DEFAULT_TICKS == 112
     assert DEFAULT_TICKS * 6 == 28 * 24

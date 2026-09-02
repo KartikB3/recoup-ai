@@ -87,7 +87,7 @@ class MerchantPolicy:
     max_links_per_invoice: int = 3
     """Payment links on one invoice before the engine downgrades to a reminder."""
 
-    escalation_threshold_paise: Paise = 5_000_000_00
+    escalation_threshold_paise: Paise = 5_00_000_00
     """Rs 5,00,000. Above this, automation escalates rather than abandons."""
 
     link_budget: int | None = None

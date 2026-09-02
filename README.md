@@ -4,7 +4,10 @@
 
 Razorpay Buildathon · Track 03: AI Revenue Recovery · solo build.
 
-> ✅ **`v0.1-submittable`.** The complete deterministic floor is tagged: 126 records, three arms, verified policy sources, replayable logs, JSON/Markdown metrics, and no LLM on the execution path. The structured model layer is Phase 3 upside, not a dependency of this result.
+> ✅ **Clear for Phase 3.** `v0.1-submittable` preserves the original deterministic
+> three-arm floor. Post-tag audit hardening adds a policy-isolated fourth arm,
+> replayable evidence and explicit explanations for every zero rule count. The
+> structured model layer remains upside, not a dependency of the no-key path.
 
 ---
 
@@ -22,23 +25,41 @@ Each of those is documented with its evidence and its design consequence in **[`
 
 ---
 
-## Control vs baseline vs agent
+## Four-way comparison: policy value and proposer value
 
-Same seeded batch, ledger, clock and simulated world. Control always waits. The baseline contacts every three days until paid or five attempts. The deterministic agent proposes from observable ledger facts and every proposal passes the policy engine.
+Same seeded batch, ledger, clock and simulated world. Control always waits. The
+baseline contacts every three days until paid or five attempts. **Baseline +
+policy runs that exact same proposer through the policy engine**, so it isolates
+what policy enforcement buys. The agent uses a different proposer behind the
+same policy engine, isolating proposer value.
 
-| Metric | Control | Baseline | Agent |
-|---|---:|---:|---:|
-| Recovery rate | 49.3% | **62.3%** | 57.8% |
-| ₹ recovered | Rs 1,24,60,148.75 | **Rs 1,57,71,226.15** | Rs 1,46,10,185.33 |
-| Contacts made | **0** | 459 | 157 |
-| Contacts per ₹ recovered | **0.00000000** | 0.00002910 | 0.00001075 |
-| **False interventions** | **0** | 104 | 23 |
-| Policy vetoes | 0 | 0 | 231 |
-| Escalated to human (agent-selected) | 0 | 0 | 16 |
-| Human queue from payer response | **0** | 28 | 5 |
-| Unresolved / written off | 72 / 0 | 37 / 19 | 60 / 0 |
+| Metric | Control | Baseline | Baseline + policy | Agent |
+|---|---:|---:|---:|---:|
+| Recovery rate (value) | 49.3% | **62.3%** | 56.5% | 57.8% |
+| Recovery rate (records) | 42.9% | **55.6%** | 50.0% | 52.4% |
+| Records paid | 54 | **70** | 63 | 66 |
+| Rs recovered | Rs 1,24,60,148.75 | **Rs 1,57,71,226.15** | Rs 1,43,03,667.23 | Rs 1,46,10,185.33 |
+| Contacts made | **0** | 459 | 161 | 157 |
+| Payment links sent | **0** | 225 | 56 | 71 |
+| **False interventions** | **0** | 104 | 23 | 23 |
+| - disputed invoices | **0** | 76 | 8 | 8 |
+| - already paid / unreconciled | **0** | 28 | 15 | 15 |
+| Policy vetoes | bypassed | bypassed | 247 merchant / 0 regulatory | 223 merchant / 8 regulatory |
+| Policy modifications | bypassed | bypassed | 16 | 16 |
+| Unresolved / written off | 72 / 0 | 37 / 19 | 63 / 0 | 60 / 0 |
 
-The agent loses 4.6 recovery points to the baseline and that loss stays in the table. It uses **65.8% fewer contacts**, makes **77.9% fewer false interventions**, and still beats the do-nothing floor by 8.5 points. Definitions and all ten per-rule firing counts, including zeroes, are in [`runs/seed42/metrics.md`](runs/seed42/metrics.md).
+Policy alone cuts the naive ladder's contacts by **64.9%** and false
+interventions by **77.9%**, at a 5.8-point value-recovery cost. With policy held
+constant, the agent proposer adds 3 paid records and 1.2 recovery points while
+using four fewer contacts. Its disputed-invoice contacts fall **76 → 8**; the
+remaining 15 already-paid/unreconciled contacts are not detectable from its
+snapshot.
+
+The zero write-offs in both policy-enabled arms are **28-day horizon
+truncation**: deferred contacts keep them mid-ladder and neither proposes STOP.
+The rule table labels policy bypasses, disabled configuration, defensive guards
+and unreachable Phase 2 proposal shapes separately in
+[`runs/seed42/metrics.md`](runs/seed42/metrics.md).
 
 ---
 
@@ -72,7 +93,7 @@ The ledger is the system of record, not Razorpay. The audit log is append-only, 
 uv sync                                   # or: pip install -e ".[dev]"
 cp .env.example .env                      # fill in Razorpay TEST keys
 
-recoup generate --seed 42                 # Phase 1
+recoup generate --seed 42 --count 126     # Phase 1, published seed-42 book
 recoup run --seed 42 --arm both           # Phase 2
 recoup metrics seed42                     # recompute from stored artifacts
 recoup dashboard                          # Phase 5

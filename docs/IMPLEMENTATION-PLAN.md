@@ -3,8 +3,14 @@
 **Track 03: AI Revenue Recovery · Razorpay Buildathon · Solo · ~7 days**
 Companion to `recoup-build-spec.md` (the *what*). This is the *how*.
 
-Status: **Phase 2 complete, gate met** (`v0.1-submittable`). `recoup run --seed 42 --arm both` produces control, baseline and deterministic-agent artifacts plus JSON/Markdown metrics; all three logs replay with zero divergences. 180 tests, mypy strict clean over 51 source files. **Next: Phase 3 — structured reasoner output over the already-green fallback seam.** The public push is still deferred to the user.
-Last updated: 2026-09-02
+Status: **Phase 2 audit hardening complete; clear for Phase 3.** `recoup run
+--seed 42 --arm both` now produces control, naive baseline, naive + policy and
+deterministic-agent artifacts plus annotated JSON/Markdown metrics. All four
+logs replay with zero divergences. 183 tests, mypy strict clean over 51 source
+files. `v0.1-submittable` remains the untouched recoverable floor. **Next:
+Phase 3 — structured reasoner output over the already-green fallback seam.**
+The public push is still deferred to the user.
+Last updated: 2026-09-03
 
 ---
 
@@ -111,11 +117,14 @@ verdict: APPROVED | MODIFIED | VETOED
 original: Intervention
 final: Intervention | None
 rule_id: str | None                 # the FIRST rule that fired
-rule_source: RuleSource             # {kind: REGULATORY|MERCHANT, title, date, url, verified: bool}
+rule_source: RuleSource             # {kind, title, date, url, verified: bool | None}
 explanation: str                    # rendered verbatim in the UI
 ```
 
-`verified: bool` is load-bearing — it is what stops an unverified citation reaching the video. A rule with `verified=False` must render in the dashboard with a visible "unverified" chip.
+Regulatory `verified: bool` is load-bearing — it stops an unverified citation
+reaching the video, and `False` must render with an "unverified" chip. Merchant
+policy has no issuing-body source, so `verified=None` means N/A; it must never
+receive a verified badge.
 
 ### 2.4 `AuditRow` — append-only JSONL
 
@@ -185,7 +194,7 @@ Estimates assume solo, focused days. "Gate" = do not proceed until true.
 |---|---|
 | `policy/rules/` — one file per rule | Each rule is a pure function `(record, proposal, world) -> PolicyVerdict \| None`. Returns `None` if it does not fire. |
 | `policy/engine.py` | Runs rules in a **fixed, documented order**; first veto wins; modifications compose. The order is part of the spec, not an implementation detail — write it down. |
-| `policy/sources.py` + `docs/POLICY-SOURCES.md` | Every rule carries `RuleSource` with `verified: bool`. |
+| `policy/sources.py` + `docs/POLICY-SOURCES.md` | Every rule carries `RuleSource`; regulatory verification is `bool`, merchant verification is N/A. |
 | **Verification tasks — do them now, not on Day 6** | ① TRAI promotional window 10:00–21:00 → confirm at trai.gov.in. ② RBI Fair Practices 08:00–19:00 contact rule, Aug 2022 outsourcing circular → confirm at rbi.org.in. These two are P0 because they gate contact. The RBI E-mandate Framework 2026 rules are **P1** — they only apply if you build the mandate lane, so do not burn Phase 2 time on them. |
 | `baseline/naive_chaser.py` | Contact every 3 days until paid or 5 attempts. **Runs through the same runner, the same ledger, the same seed — and bypasses the policy engine.** That bypass is the whole point: the baseline is what generates the false interventions the agent avoids. |
 | `metrics/compute.py` + `report.py` | The full table from spec §7a, including the rows where you lose. Emits JSON + Markdown. |
@@ -193,7 +202,13 @@ Estimates assume solo, focused days. "Gate" = do not proceed until true.
 
 **Merchant-policy rules — label them merchant-configured, never regulatory:** max 4 contacts / payer / 30 days; ≥72h spacing; max 3 payment links / invoice; hard stop on `DISPUTED`; escalate above a configurable value; global 30-link API budget. **Do not invent a regulatory retry cap** — no verified source exists, and getting caught inventing a regulation is worse than citing none.
 
-**Gate — met:** `recoup run --seed 42 --arm both` runs end to end and produces `runs/seed42/metrics.md` with control, baseline and agent filled in. `both` remains the compatible gate spelling and is an alias for all three arms; `--arm all` is the explicit spelling. The installed CLI is the real surface — the earlier `python -m recoup.runner` line was wrong because no runner module entry point exists. Evidence and numbers are in `BUILD-LOG.md`; the commit is tagged `v0.1-submittable`.
+**Gate — met and audit-hardened:** `recoup run --seed 42 --arm both` runs end to
+end and produces `runs/seed42/metrics.md` with control, baseline, baseline +
+policy and agent filled in. `both` remains the compatible gate spelling and is
+an alias for all four arms; `--arm all` is the explicit spelling. The fourth
+arm holds the proposer constant to isolate policy value. Evidence and numbers
+are in `BUILD-LOG.md`; `v0.1-submittable` preserves the original three-arm
+floor and is not moved by post-tag hardening.
 
 **Model/effort:** `Opus 5`, effort `xhigh` throughout; step up to `max` for the rule-ordering logic and the metrics computation — an off-by-one in "contacts per ₹ recovered" is exactly the kind of error that survives all the way to the video. Use WebSearch/WebFetch for the two verification tasks; never answer a citation from memory.
 
@@ -206,13 +221,23 @@ Estimates assume solo, focused days. "Gate" = do not proceed until true.
 | Task | Notes |
 |---|---|
 | `reasoner/schemas.py` | Pydantic → JSON Schema → `output_config: {format: ...}`. Read back with `client.messages.parse()`. |
-| `reasoner/prompts.py` | System prompt carries the intervention space, the policy rules (so the model proposes *plausible* actions), and the "you never output a rupee amount or a date" constraint. **Put the frozen system prompt first and cache it** — prefix caching is what makes 120 records × 2 arms affordable. |
+| `reasoner/prompts.py` | System prompt carries the intervention space, the policy rules (so the model proposes *plausible* actions), and the "you never output a rupee amount or a date" constraint. **Put the frozen system prompt first and cache it.** The canonical agent run has 472 decision rows; budget against that upper bound, not record count. |
 | `reasoner/cache.py` | Cache by SHA-256 of the canonical input snapshot. Disk-backed at `data/llm_cache/`, **committed to the repo**. This makes runs reproducible *and* makes the demo work with the API down. Do not let this become an untracked directory — the offline gate silently depends on it. |
 | `reasoner/fallback.py` | **Landed early in Phase 2 and already drives the agent arm.** Phase 3 preserves it as the deterministic path for API errors, timeouts or refusals. Assume the API is down while recording. Branch on a falsy-or-missing key, not key absence; CI uses `ANTHROPIC_API_KEY: ""`. |
 | `reasoner/batch_insight.py` | The §7b call: one prompt over the aggregate, run at effort `high`. Detects the parent-group cluster and returns a suppression recommendation which the **policy engine still has to approve**. |
 | Re-run and compare | Agent vs baseline on seed 42. If the agent does not beat the baseline, that is a *finding* — investigate before adding features. Log it in `ISSUES.md` either way. |
 
-**Model config for the product itself:** `claude-opus-5`, `thinking: {type: "adaptive"}`, `output_config: {effort: "medium"}`. Per-record triage is not a hard reasoning problem, and `medium` keeps 240 calls cheap; the batch-insight call gets `high`. Set `betas: ["server-side-fallback-2026-07-01"]` with `fallbacks: "default"`, and always check `stop_reason` before reading content. `claude-haiku-4-5` is a reasonable degraded tier between Opus and the deterministic fallback — build it only if Phase 3 finishes early.
+**Model config for the product itself:** `claude-opus-5`, `thinking: {type:
+"adaptive"}`, `output_config: {effort: "medium"}`. Per-record triage is not a
+hard reasoning problem; the batch-insight call gets `high`. The canonical agent
+run has **472 decisions**, and its snapshots are roughly 1.1 KB each. Because
+`tick`, `as_of` and `days_overdue` change at each review, the input-hash cache
+accelerates repeated runs and enables offline demos; it does **not** amortize
+calls within the first run. Set `betas:
+["server-side-fallback-2026-07-01"]` with `fallbacks: "default"`, and always
+check `stop_reason` before reading content. `claude-haiku-4-5` is a reasonable
+degraded tier between Opus and the deterministic fallback — build it only if
+Phase 3 finishes early.
 
 **Load the `claude-api` skill before writing any of this code.** Do not write SDK calls from memory; several API shapes changed in 2025–26.
 

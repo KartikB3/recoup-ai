@@ -20,6 +20,7 @@ app = typer.Typer(
 )
 
 DEFAULT_SEED = 42
+DEFAULT_COUNT = 126
 DEFAULT_TICKS = 112  # 1 tick = 6 virtual hours -> 28 virtual days
 
 
@@ -28,6 +29,7 @@ class Arm(StrEnum):
 
     agent = "agent"
     baseline = "baseline"
+    policy_baseline = "policy-baseline"
     control = "control"
     both = "both"
     all = "all"
@@ -58,7 +60,9 @@ def _console_safe(text: str) -> str:
 @app.command()
 def generate(
     seed: int = typer.Option(DEFAULT_SEED, help="RNG seed. Same seed, byte-identical batch."),
-    count: int = typer.Option(120, min=120, help="Number of records. Spec floor is 120."),
+    count: int = typer.Option(
+        DEFAULT_COUNT, min=120, help="Number of records. Published seed-42 book is 126."
+    ),
     out: Path = typer.Option(Path("data/batches"), help="Output directory."),
 ) -> None:
     """Generate a seeded, reproducible invoice batch. (Phase 1)"""
@@ -89,7 +93,7 @@ def run(
     This command is the Phase 2 gate: `recoup run --seed 42 --arm both` must
     produce a full metric table with no LLM involved.
     """
-    from recoup.baseline.naive_chaser import NaiveChaser
+    from recoup.baseline.naive_chaser import NaiveChaser, PolicyNaiveChaser
     from recoup.domain.enums import Arm as DomainArm
     from recoup.generator.generate import generate_batch
     from recoup.metrics.compute import compute_metrics
@@ -113,12 +117,20 @@ def run(
         selected = (DomainArm.AGENT,)
     elif arm is Arm.baseline:
         selected = (DomainArm.BASELINE,)
+    elif arm is Arm.policy_baseline:
+        selected = (DomainArm.POLICY_BASELINE,)
     elif arm is Arm.control:
         selected = (DomainArm.CONTROL,)
     else:
         # `both` remains the documented gate spelling, but now means the full
-        # comparison: control, baseline and agent. `all` says that explicitly.
-        selected = (DomainArm.CONTROL, DomainArm.BASELINE, DomainArm.AGENT)
+        # comparison: control, naive, naive + policy, and agent. `all` says that
+        # explicitly; `both` remains compatible with the documented gate command.
+        selected = (
+            DomainArm.CONTROL,
+            DomainArm.BASELINE,
+            DomainArm.POLICY_BASELINE,
+            DomainArm.AGENT,
+        )
 
     batch = generate_batch(seed)
     run_id = f"seed{seed}" if ticks == DEFAULT_TICKS else f"seed{seed}-t{ticks}"
@@ -136,6 +148,9 @@ def run(
         elif domain_arm is DomainArm.BASELINE:
             proposer = NaiveChaser()
             policy = None
+        elif domain_arm is DomainArm.POLICY_BASELINE:
+            proposer = PolicyNaiveChaser()
+            policy = PolicyEngine(MerchantPolicy(link_budget=None))
         else:
             proposer = AlwaysWait()
             policy = None
@@ -169,16 +184,15 @@ def metrics(
     run_id: str = typer.Argument(..., help="Run id under runs/."),
     fmt: str = typer.Option("markdown", help="markdown | json"),
 ) -> None:
-    """Recompute the three-arm metric table from stored artifacts. (Phase 2)"""
+    """Recompute the four-arm metric table from stored artifacts. (Phase 2)"""
     from recoup.audit.log import read_log, verify_chain
-    from recoup.domain.enums import Arm as DomainArm
     from recoup.domain.models import Invoice
-    from recoup.metrics.compute import compute_metrics
+    from recoup.metrics.compute import REPORT_ARM_ORDER, compute_metrics
     from recoup.metrics.report import render_json, render_markdown, write_reports
 
     run_dir = Path("runs") / run_id
     metric_inputs = {}
-    for domain_arm in (DomainArm.CONTROL, DomainArm.BASELINE, DomainArm.AGENT):
+    for domain_arm in REPORT_ARM_ORDER:
         arm_dir = run_dir / domain_arm.value.lower()
         final_path = arm_dir / "final.json"
         log_path = arm_dir / "audit.jsonl"

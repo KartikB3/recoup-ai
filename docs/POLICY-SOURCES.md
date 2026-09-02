@@ -10,11 +10,12 @@ Two kinds of rule, never confused:
 - **MERCHANT** — business policy. Labelled as merchant-configured everywhere it
   is rendered. Never dressed up as regulatory.
 
-`RuleSource.verified` is the enforcement mechanism: a rule with
-`verified=False` renders with a visible warning chip and is kept out of the
-demo. As of Phase 2 close there are **no unverified rules in the engine** —
-not because the flag was flipped, but because the two P0 citations were read at
-source and the P1 e-mandate rules were not written at all.
+`RuleSource.verified` is the enforcement mechanism for **regulatory** sources:
+`False` renders with a warning chip and is kept out of the demo. Verification
+is `None`/N/A for merchant policy because it has no issuing-body source; giving
+it a verified badge would be a category error. There are no unverified
+regulatory rules in the engine — the P0 citations were read at source and the
+P1 e-mandate rules were not written at all.
 
 ---
 
@@ -191,6 +192,10 @@ limits belong to each proposer and are called out separately below.
 | Global payment-link budget per run | `None` (off) | Set to 30 for live runs only (ISS-001). Off for the simulated batch — see the note below. |
 | Attempts before automation stops | Baseline: 5 contacts. Agent: 6 decision rungs (5 contacts, then `STOP`). | **Explicitly not regulatory**, see ISS-009. Owned by each proposer, not the engine. The agent's post-phone reminder is required for the RBI behavioural check; see ISS-025. |
 
+The ₹5,00,000 default is `50_000_000` paise. A regression test equates it to
+the generator's escalation reference; this prevents Indian digit grouping from
+silently turning ₹5 lakh into ₹50 lakh again (ISS-030).
+
 **The dispute rule is an escalation, not a veto, and that was a decision.** The
 build spec says "hard stop on `DISPUTED`". A veto would have been the literal
 reading and the wrong behaviour: the proposer would re-propose contact at every
@@ -213,18 +218,22 @@ rule is written, unit-tested and wired; it activates in Phase 4 with
 
 ---
 
-## Rules that are wired, verified and do **not** fire on the seeded batch
+## Why each zero stays zero on the seeded batch
 
-Stated here rather than discovered later. Three of the ten rules are
-structurally dormant in Phase 2, and each is unit-tested directly instead:
+The canonical report distinguishes a policy bypass from a policy-enabled zero.
+Six rules record zero in both policy-enabled arms, for four different reasons:
 
-| Rule | Why it cannot fire |
+| Rule | Run status and why zero |
 |---|---|
+| `nothing-outstanding` | Defensive guard. A zero-balance record is terminal and excluded from review before policy runs. |
 | `trai-promotional-window` | Recoup sends no promotional traffic. Every message it drafts is Service, which the regulation explicitly exempts. Making it fire would mean inventing promotional content so a time window had something to bite on — a worse use of a real citation than leaving it dormant. |
-| `trai-message-category` | The Phase 2 proposer always drafts the correct category. The rule catches a *wrong* classification, and nothing in Phase 2 produces one. It is the rule most likely to fire once a model is drafting messages in Phase 3. |
-| `link-budget` | Configured off for simulated runs, per the note above. |
+| `trai-message-category` | The Phase 2 agent always drafts the correct Service category; the naive proposer has no draft. The rule becomes a live guard against model error in Phase 3. |
+| `invoice-link-cap` | Active on an attempted fourth payment link. The naive ladder sends at most three and the agent ladder at most two, so neither attempts the action the cap would modify. |
+| `link-budget` | Disabled for simulated runs with `link_budget=None`, per the note above. The report labels this disabled state rather than displaying it as an unexplained zero. |
+| `high-value-escalation` | Active only when `STOP` is proposed above ₹5,00,000. Policy deferrals leave both policy-enabled arms mid-ladder at the 28-day horizon, so neither proposes STOP. |
 
-The veto column in the Phase 2 metric table is therefore
-**merchant-driven plus the RBI contact-hour rule**. That is a fact about the
-batch, not a weakness in the engine, and it is better said here than explained
-under questioning.
+Every rule has a discriminating direct unit test. The behavioral artifact also
+records 16 visible-dispute modifications in each policy arm, 247 merchant
+vetoes in baseline + policy, and 223 merchant plus 8 regulatory vetoes in the
+agent arm. Modifications are reported separately; they are not inflated into
+the veto total.

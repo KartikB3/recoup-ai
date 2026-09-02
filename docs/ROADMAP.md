@@ -5,7 +5,12 @@ Two horizons, kept deliberately separate. Do not let the second one leak into th
 
 **Maintenance:** re-scope at the close of every phase. Move completed items out of §1, move slipped items down, and add anything newly discovered.
 
-Last updated: 2026-09-02 — **Phase 2 complete, gate met.** The verified ten-rule engine runs end to end across control, baseline and agent; all three logs replay with zero divergences; the full metric table is committed under `runs/seed42/`; 180 tests are green. The recoverable floor is tagged `v0.1-submittable`. **Phase 3 is next.** The public push remains deliberately deferred to the user.
+Last updated: 2026-09-03 — **Phase 2 audit hardening complete; clear for
+Phase 3.** The ten-rule engine runs across control, naive baseline, naive +
+policy, and agent + policy; all four logs replay with zero divergences. The
+metric report distinguishes bypassed, disabled, defensive and dormant rules,
+and 183 tests are green. `v0.1-submittable` remains the recoverable pre-audit
+floor. The public push remains deliberately deferred to the user.
 
 ---
 
@@ -24,10 +29,12 @@ Last updated: 2026-09-02 — **Phase 2 complete, gate met.** The verified ten-ru
 | 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ⬜ |
 | 19 | Create the public GitHub repository and push | user decision | ⬜ local history and tag are ready |
 
-The three-arm comparison is now a standing contract. `AlwaysWait` recovers
-49.3% with zero contacts, the baseline recovers 62.3% with 459 contacts, and
-the deterministic agent recovers 57.8% with 157 contacts. Every later table
-must keep all three columns and the losses.
+The four-arm comparison is now a standing contract. `AlwaysWait` preserves the
+49.3% floor. The naive baseline gets 62.3% with 459 contacts; the identical
+proposer behind policy gets 56.5% with 161; the deterministic agent behind the
+same policy gets 57.8% with 157. Every later table must preserve all four
+columns: the middle pair isolates policy value, and the final pair isolates
+proposer value.
 
 ### P1 — turns solid into winning
 
@@ -61,7 +68,7 @@ Real money · real customers · real PII · anything where the LLM decides a num
 | 5 | TRAI + RBI citations verified at the issuing body | `docs/POLICY-SOURCES.md`; ISS-024 and ISS-025 |
 | 6, 16 | Policy engine and `PolicyGate` wiring | Ten fixed-order rules; sources attached to firing verdicts; UI rendering remains part of #12 |
 | 7 | Naive baseline on the same seed | 62.3% recovered, 459 contacts |
-| 8 | Full three-arm metric table, losses included | `runs/seed42/metrics.{json,md}` |
+| 8 | Full four-arm metric table, losses and rule run-status notes included | `runs/seed42/metrics.{json,md}` |
 | 9 | Complete no-LLM floor | `v0.1-submittable` |
 | 13 | README boundary and metric table above the fold | Landed early at Phase 2 close |
 

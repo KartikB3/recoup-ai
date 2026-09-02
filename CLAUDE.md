@@ -9,11 +9,18 @@ Razorpay Buildathon, Track 03. Solo, ~7 days. Read `docs/IMPLEMENTATION-PLAN.md`
 Read in this order:
 
 1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, then Phase 3.
-2. `docs/BUILD-LOG.md` — the Phase 2 entry: the three-arm numbers, rule firings, gate evidence and deviations.
-3. `docs/ISSUES.md` — **ISS-017, ISS-024, ISS-025 and ISS-027** carry the lessons that constrain later phases; ISS-012 and ISS-021 remain live obligations.
+2. `docs/BUILD-LOG.md` — the Phase 2 entry and post-tag audit-hardening entry.
+3. `docs/ISSUES.md` — **ISS-017, ISS-024, ISS-025, ISS-027 and ISS-028–031** carry the lessons that constrain later phases; ISS-012 and ISS-021 remain live obligations.
 4. This file, below, for the invariants.
 
-**What Phase 2 left you.** Everything from Phase 1, plus a verified ten-rule policy engine, logged forward-only deferrals, a deterministic snapshot-only agent proposer, complete CLI run/metrics flows, and a committed three-arm run under `runs/seed42/`. The agent recovers **57.8%** with 157 contacts and 23 false interventions; the baseline recovers 62.3% with 459 and 104; control recovers 49.3% with none. Eight `rbi-contact-hours` vetoes prove the verified contact rule is live. All three logs replay with zero divergences. **180 tests. No Anthropic import anywhere on the Phase 2 execution path.**
+**What Phase 3 starts from.** Everything from Phase 1–2, plus a post-tag
+four-arm comparison under `runs/seed42/`: control, naive baseline, the identical
+naive proposer with policy, and agent with policy. Policy alone moves 459 → 161
+contacts and 104 → 23 false interventions; with policy held constant, the agent
+adds 3 paid records and 1.2 value-recovery points. Eight
+`rbi-contact-hours` vetoes prove the adopted contact rule is live. All four logs
+replay with zero divergences. **183 tests. No Anthropic import anywhere on the
+deterministic execution path.**
 
 Setup: `uv sync --extra dev`. Check: `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest`. Note `ruff format --check` — CI enforces it and the old check line here omitted it.
 
@@ -24,7 +31,11 @@ Two seams are load-bearing:
 - **`PolicyGate`** is implemented by `PolicyEngine`. It receives the full record and ledger, logs every firing source, and can approve, reduce or veto. Do not move policy logic into the reasoner.
 - **`Proposer`** receives a **snapshot**, never an `Invoice`, so neither the model nor fallback can read `payer_archetype`, `flags`, `provenance` or `spotlight`. The Phase 2 fallback already satisfies it; the Phase 3 client must satisfy the same Protocol.
 
-**Report three arms, not two.** `AlwaysWait` recovers **49.3%** of the book with zero contacts. The naive baseline gets 62.3% for 459 contacts, 225 payment links and 28 cases handed to a human. A metric table without the do-nothing floor flatters whichever arm is being sold.
+**Report four arms, not two.** `AlwaysWait` preserves the 49.3% do-nothing
+floor. Naive baseline versus the policy baseline isolates policy value; the
+policy baseline versus agent isolates proposer value. Never collapse `bypassed` policy
+into a numeric zero, and keep the rule run-status annotations beside zero
+firings.
 
 **Invariant 7 remains load-bearing.** The shipped RBI and TRAI sources are verified and must not be weakened; RBI e-mandate claims remain unverified P1 work and must not enter the product unless the mandate lane ships and the issuing-body source is read.
 
@@ -32,7 +43,9 @@ Two seams are load-bearing:
 
 ## The rule that outranks everything
 
-**Protect the Phase 2 tag.** `v0.1-submittable` is the complete deterministic floor. Everything after it is upside. If a later change threatens the three-arm gate, replay, or the no-key fallback, the change loses.
+**Protect the Phase 2 tag.** `v0.1-submittable` is the recoverable deterministic
+floor and must not move. The current post-tag gate is four arms, replay, and the
+no-key fallback. If a later change threatens those, the change loses.
 
 If behind schedule: cut from P1, never from P0. Drop order is in `docs/ROADMAP.md`.
 
@@ -44,7 +57,10 @@ If behind schedule: cut from P1, never from P0. Drop order is in `docs/ROADMAP.m
 4. **The intervention space is a closed enum.** `WAIT | SOFT_REMINDER | PAYMENT_LINK | PHONE_FOLLOWUP | ESCALATE_HUMAN | STOP`. Nothing outside it exists.
 5. **The audit log is append-only.** Rows are never updated. Outcomes arrive as new rows.
 6. **`runner/batch.py` is the only orchestrator.** Everything else is a component it calls.
-7. **Never cite a regulation that is not verified at source.** Every `RuleSource` carries `verified: bool`; unverified rules render with a visible chip and never appear in the video. Merchant policy is labelled merchant policy — never dressed up as regulatory.
+7. **Never cite a regulation that is not verified at source.** Regulatory
+`RuleSource.verified` is a required boolean; unverified sources render with a
+visible chip and never appear in the video. It is `None`/N/A for merchant
+policy, which is labelled merchant policy — never dressed up as regulatory.
 8. **The ledger is the system of record, not Razorpay.**
 
 ## Documentation protocol — run this at the close of every phase

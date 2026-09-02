@@ -90,7 +90,7 @@ class Proposal:
     """What a proposer wants done, and its reasoning if it had any.
 
     `llm_proposal` is None for the deterministic arms and carries the model's
-    structured output in Phase 2. Keeping it on the proposal rather than
+    structured output in Phase 3. Keeping it on the proposal rather than
     reaching for it later is what lets the audit row record what was proposed
     even when the policy engine vetoed it.
     """

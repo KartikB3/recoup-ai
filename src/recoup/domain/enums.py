@@ -110,12 +110,13 @@ class Arm(StrEnum):
     regardless, and the whole argument of this project is about which contacts
     were worth making.
 
-    The arm is stamped on every audit row, so a metric layer can separate three
+    The arm is stamped on every audit row, so a metric layer can separate four
     runs without keying on `run_id` conventions.
     """
 
     AGENT = "AGENT"
     BASELINE = "BASELINE"
+    POLICY_BASELINE = "POLICY_BASELINE"
     CONTROL = "CONTROL"
 
 

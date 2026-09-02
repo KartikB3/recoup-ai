@@ -1,12 +1,14 @@
 """Rule provenance. Phase 2.
 
 Every rule carries a `RuleSource`: kind (REGULATORY or MERCHANT), title, date,
-url, and `verified: bool`.
+url, and a regulatory verification status. Verification is N/A for merchant
+policy because there is no issuing-body source to verify.
 
-`verified` is load-bearing. It is the mechanism that stops an unverified
-citation reaching the video: an unverified rule renders with a visible chip in
-the dashboard. Merchant policy is labelled merchant policy and is never dressed
-up as regulatory. See docs/ISSUES.md, ISS-006 through ISS-009.
+Regulatory `verified` is load-bearing. It stops an unverified citation reaching
+the video: an unverified regulatory rule renders with a visible chip in the
+dashboard. Merchant policy is labelled merchant policy, carries N/A instead,
+and is never dressed up as regulatory. See docs/ISSUES.md, ISS-006 through
+ISS-009 and ISS-028.
 
 What "verified" means in this file
 ----------------------------------
@@ -143,7 +145,7 @@ MERCHANT_POLICY = RuleSource(
     title="Recoup merchant collections policy (configurable)",
     cited_date=None,
     url=None,
-    verified=True,
+    verified=None,
     scope_caveat=None,
 )
 
@@ -159,7 +161,7 @@ ALL_SOURCES: dict[str, RuleSource] = {
 
 
 def unverified() -> list[RuleSource]:
-    """Every source not confirmed at the issuing body. Renders with a chip.
+    """Every regulatory source not confirmed at its issuing body.
 
     Empty as of Phase 2: the two P0 citations were verified and the P1
     e-mandate rules were not written, because the mandate lane did not ship.
@@ -167,4 +169,8 @@ def unverified() -> list[RuleSource]:
     "what is unverified here?", and an empty list is a truthful answer that a
     hardcoded "none" is not.
     """
-    return [source for source in ALL_SOURCES.values() if not source.verified]
+    return [
+        source
+        for source in ALL_SOURCES.values()
+        if source.kind is RuleKind.REGULATORY and source.verified is not True
+    ]

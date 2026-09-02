@@ -15,6 +15,7 @@ from recoup.audit.replay import compare, replay
 from recoup.domain.enums import (
     Intervention,
     MessageCategory,
+    RuleKind,
     VerdictKind,
 )
 from recoup.domain.models import DraftedMessage, LLMProposal
@@ -163,7 +164,23 @@ def test_dormant_regulatory_and_budget_rules_are_exercised() -> None:
         verdict = rule.check(contexts[rule_id])
         assert verdict is not None
         assert verdict.rule_source is not None
-        assert verdict.rule_source.verified
+        if verdict.rule_source.kind is RuleKind.REGULATORY:
+            assert verdict.rule_source.verified is True
+        else:
+            assert verdict.rule_source.verified is None
+
+
+def test_merchant_source_verification_is_not_applicable() -> None:
+    """A merchant policy must never inherit a regulatory verification badge."""
+    assert MERCHANT_POLICY.kind is RuleKind.MERCHANT
+    assert MERCHANT_POLICY.verified is None
+
+
+def test_default_escalation_threshold_matches_the_seed_contract() -> None:
+    """Prevent Indian digit grouping from silently changing Rs 5 lakh to Rs 50 lakh."""
+    from recoup.generator.archetypes import ESCALATION_REFERENCE_PAISE
+
+    assert MerchantPolicy().escalation_threshold_paise == ESCALATION_REFERENCE_PAISE
 
 
 def test_a_modification_never_raises_contact_intensity() -> None:

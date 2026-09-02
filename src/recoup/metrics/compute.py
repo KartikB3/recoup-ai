@@ -6,12 +6,25 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 
-from recoup.domain.enums import Arm, Flag, Intervention, RecordState, RowKind, VerdictKind
+from recoup.domain.enums import (
+    Arm,
+    Flag,
+    Intervention,
+    RecordState,
+    RowKind,
+    RuleKind,
+    VerdictKind,
+)
 from recoup.domain.models import AuditRow, Invoice, Paise
 from recoup.policy.rules import RULE_ORDER
 
 HARM_FLAGS: frozenset[Flag] = frozenset({Flag.DISPUTED, Flag.ALREADY_PAID_UNRECONCILED})
-REPORT_ARM_ORDER: tuple[Arm, ...] = (Arm.CONTROL, Arm.BASELINE, Arm.AGENT)
+REPORT_ARM_ORDER: tuple[Arm, ...] = (
+    Arm.CONTROL,
+    Arm.BASELINE,
+    Arm.POLICY_BASELINE,
+    Arm.AGENT,
+)
 
 
 @dataclass(frozen=True)
@@ -24,10 +37,20 @@ class ArmMetrics:
     billed_paise: Paise
     recovered_paise: Paise
     recovery_rate_percent: Decimal
+    record_recovery_rate_percent: Decimal
     contacts_made: int
+    payment_links_sent: int
     contacts_per_rupee_recovered: Decimal | None
     false_interventions: int
+    false_interventions_disputed: int
+    false_interventions_already_paid: int
+    policy_enabled: bool
     policy_vetoes: int
+    regulatory_vetoes: int
+    merchant_vetoes: int
+    policy_modifications: int
+    deferred_vetoes: int
+    stop_decisions: int
     automated_escalations: int
     payer_human_queue: int
     unresolved_records: int
@@ -96,12 +119,32 @@ def compute_arm_metrics(records: list[Invoice], rows: list[AuditRow]) -> ArmMetr
     )
 
     false_interventions = 0
+    false_interventions_disputed = 0
+    false_interventions_already_paid = 0
     for row in contact_rows:
         record = records_by_id.get(row.record_id)
         if record is None:
             raise ValueError(f"audit row names unknown record {row.record_id}")
         if record.flags & HARM_FLAGS and row.action is not None:
             false_interventions += row.action.contact_units
+        if Flag.DISPUTED in record.flags and row.action is not None:
+            false_interventions_disputed += row.action.contact_units
+        if Flag.ALREADY_PAID_UNRECONCILED in record.flags and row.action is not None:
+            false_interventions_already_paid += row.action.contact_units
+
+    veto_rows = [
+        row
+        for row in rows
+        if row.policy_verdict is not None and row.policy_verdict.verdict is VerdictKind.VETOED
+    ]
+
+    def vetoes_from(kind: RuleKind) -> int:
+        return sum(
+            row.policy_verdict is not None
+            and row.policy_verdict.rule_source is not None
+            and row.policy_verdict.rule_source.kind is kind
+            for row in veto_rows
+        )
 
     automated_rows = [
         row
@@ -129,11 +172,39 @@ def compute_arm_metrics(records: list[Invoice], rows: list[AuditRow]) -> ArmMetr
         billed_paise=billed_paise,
         recovered_paise=recovered_paise,
         recovery_rate_percent=recovery_rate,
+        record_recovery_rate_percent=(
+            Decimal(sum(record.state is RecordState.PAID for record in records))
+            * Decimal(100)
+            / Decimal(len(records))
+            if records
+            else Decimal(0)
+        ),
         contacts_made=contacts_made,
+        payment_links_sent=sum(
+            row.action.api_units for row in rows if row.action is not None and row.action.executed
+        ),
         contacts_per_rupee_recovered=contacts_per_rupee,
         false_interventions=false_interventions,
-        policy_vetoes=sum(
-            row.policy_verdict is not None and row.policy_verdict.verdict is VerdictKind.VETOED
+        false_interventions_disputed=false_interventions_disputed,
+        false_interventions_already_paid=false_interventions_already_paid,
+        policy_enabled=any(row.policy_verdict is not None for row in rows),
+        policy_vetoes=len(veto_rows),
+        regulatory_vetoes=vetoes_from(RuleKind.REGULATORY),
+        merchant_vetoes=vetoes_from(RuleKind.MERCHANT),
+        policy_modifications=sum(
+            row.policy_verdict is not None and row.policy_verdict.verdict is VerdictKind.MODIFIED
+            for row in rows
+        ),
+        deferred_vetoes=sum(
+            row.policy_verdict is not None
+            and row.policy_verdict.verdict is VerdictKind.VETOED
+            and row.policy_verdict.defer_to_tick is not None
+            for row in rows
+        ),
+        stop_decisions=sum(
+            row.action is not None
+            and row.action.executed
+            and row.action.intervention is Intervention.STOP
             for row in rows
         ),
         automated_escalations=len(automated_rows),
