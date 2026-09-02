@@ -7,6 +7,7 @@ the signatures are the thing being frozen, not the bodies.
 
 from __future__ import annotations
 
+import json
 from enum import StrEnum
 from pathlib import Path
 
@@ -54,7 +55,18 @@ def generate(
     out: Path = typer.Option(Path("data/batches"), help="Output directory."),
 ) -> None:
     """Generate a seeded, reproducible invoice batch. (Phase 1)"""
-    _not_yet(1, "The generator")
+    from recoup.generator.generate import generate_batch, write_batch
+
+    batch = generate_batch(seed=seed, count=count)
+    path, digest = write_batch(batch, out)
+    typer.secho(f"wrote {len(batch.records)} records to {path}", fg=typer.colors.GREEN)
+    typer.echo(f"sha256 {digest}")
+    typer.echo(
+        f"cluster {batch.meta.parent_group_id}: "
+        f"{len(batch.meta.cluster_invoice_ids)} records, "
+        f"quiet {batch.meta.quiet_window[0]} to {batch.meta.quiet_window[1]}"
+    )
+    typer.echo(f"spotlight {batch.meta.spotlight_invoice_id}")
 
 
 @app.command()
@@ -92,7 +104,45 @@ def replay(
     The acceptance test: replayed state must equal ledger state. If it does not,
     the log is wrong.
     """
-    _not_yet(1, "Audit replay")
+    from recoup.audit.log import read_log
+    from recoup.audit.replay import compare, finalise_replay
+    from recoup.audit.replay import replay as replay_rows
+    from recoup.domain.models import Invoice
+    from recoup.generator.generate import load_batch
+
+    run_dir = Path("runs") / run_id
+    log_path = run_dir / "audit.jsonl"
+    batch_path = run_dir / "batch.json"
+    final_path = run_dir / "final.json"
+    for required in (log_path, batch_path, final_path):
+        if not required.exists():
+            typer.secho(f"missing {required}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1)
+
+    rows = read_log(log_path)
+    horizon = max((row.tick for row in rows), default=0) + 1
+
+    # Reconstruct from the OPENING batch and the log, and nothing else.
+    result = replay_rows(load_batch(batch_path).records, rows)
+    finalise_replay(result, horizon)
+
+    if invoice_id:
+        record = result.ledger.get(invoice_id)
+        typer.echo(f"{invoice_id}: {record.state} recovered={record.recovered_paise} paise")
+        return
+
+    # Compare against the CLOSING position the run itself stored. This is the
+    # acceptance test: the log has to reproduce a state it was not handed.
+    stored = [Invoice.model_validate(row) for row in json.loads(final_path.read_text("utf-8"))]
+    differences = compare(stored, result.ledger.records)
+
+    typer.echo(f"{len(rows)} rows, chain verified, {len(result.ledger.records)} records")
+    if differences:
+        for difference in differences[:10]:
+            typer.secho(str(difference), fg=typer.colors.RED, err=True)
+        typer.secho(f"{len(differences)} divergences", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+    typer.secho("replay matches the ledger", fg=typer.colors.GREEN)
 
 
 @app.command()

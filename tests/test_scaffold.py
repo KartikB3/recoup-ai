@@ -111,9 +111,9 @@ def test_unimplemented_commands_fail_loudly() -> None:
     Silently succeeding with no output is how a phase gets marked done by
     accident.
     """
-    result = runner.invoke(app, ["generate", "--seed", "42"])
+    result = runner.invoke(app, ["metrics", "some-run"])
     assert result.exit_code == 1
-    assert "Phase 1" in result.output
+    assert "Phase 2" in result.output
     assert "IMPLEMENTATION-PLAN" in result.output
 
 

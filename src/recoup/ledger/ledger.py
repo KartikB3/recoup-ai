@@ -123,9 +123,31 @@ class IllegalTransition(RuntimeError):
         self.target = target
 
 
+#: States the automated loop no longer proposes actions in, though the record
+#: is not finished and can still be paid.
+#:
+#: HUMAN_QUEUE means a person has the case. Whether it got there by the agent
+#: escalating or by the payer complaining, the machine is done with it, and a
+#: run that kept proposing on it would be reporting agent decisions a human had
+#: already superseded. DISPUTED is deliberately NOT here: whether to keep
+#: acting on a disputed record is a policy judgement, and Phase 2's hard-stop
+#: rule is where that judgement belongs -- not baked into the ledger.
+UNATTENDED_STATES: frozenset[RecordState] = frozenset({RecordState.HUMAN_QUEUE})
+
+
 def is_terminal(state: RecordState) -> bool:
     """Whether a record in this state can still change."""
     return state in TERMINAL_STATES
+
+
+def _legal(current: RecordState, target: RecordState) -> RecordState:
+    """`target` if the machine permits it from `current`, otherwise no move.
+
+    The transition table is the single source of truth about what can happen.
+    A derivation function that contradicts it does not make the move legal, it
+    just moves the crash from `transition` to somewhere less obvious.
+    """
+    return target if target in ALLOWED_TRANSITIONS[current] else current
 
 
 def state_after_action(current: RecordState, intervention: Intervention) -> RecordState:
@@ -138,11 +160,21 @@ def state_after_action(current: RecordState, intervention: Intervention) -> Reco
     if is_terminal(current):
         return current
     if intervention is Intervention.ESCALATE_HUMAN:
-        return RecordState.HUMAN_QUEUE
+        return _legal(current, RecordState.HUMAN_QUEUE)
     if intervention is Intervention.STOP:
-        return RecordState.EXHAUSTED
+        # STOP means "automation stops chasing", and it moves a record to
+        # EXHAUSTED only from the states where chasing was the active mode.
+        # From DISPUTED or HUMAN_QUEUE the chase had already halted for a
+        # substantive reason -- an unresolved objection, a person holding the
+        # case -- and STOP merely confirms it. Marking those EXHAUSTED would
+        # feed them to `finalise` and write them off, turning an open
+        # commercial matter into a settled loss in the metric table.
+        #
+        # Driven off ALLOWED_TRANSITIONS rather than a second list, so the
+        # state machine stays the one place this is decided.
+        return _legal(current, RecordState.EXHAUSTED)
     if spec(intervention).is_contact and current is RecordState.AT_RISK:
-        return RecordState.CONTACTED
+        return _legal(current, RecordState.CONTACTED)
     return current
 
 
@@ -150,24 +182,31 @@ def state_after_outcome(current: RecordState, outcome: OutcomeKind) -> RecordSta
     """Pure. The state a record reaches by the world responding.
 
     Shared with `audit.replay`. See `state_after_action`.
+
+    Every branch below is filtered through `_legal`, so this function can never
+    name a move the table forbids. That guard is not decorative: WRITTEN_OFF is
+    reachable only from EXHAUSTED and only at finalisation, and without the
+    filter an outcome row carrying it would write off an AT_RISK record --
+    turning a live receivable into a booked loss on the strength of one log
+    line.
     """
     if is_terminal(current):
         return current
     match outcome:
         case OutcomeKind.PAID_FULL:
-            return RecordState.PAID
+            return _legal(current, RecordState.PAID)
         case OutcomeKind.PROMISED:
-            return RecordState.PROMISED
+            return _legal(current, RecordState.PROMISED)
         case OutcomeKind.DISPUTE_RAISED:
-            return RecordState.DISPUTED
+            return _legal(current, RecordState.DISPUTED)
         case OutcomeKind.COMPLAINT | OutcomeKind.ESCALATED:
-            return RecordState.HUMAN_QUEUE
+            return _legal(current, RecordState.HUMAN_QUEUE)
         case OutcomeKind.PROMISE_BROKEN:
             return RecordState.CONTACTED if current is RecordState.PROMISED else current
         case OutcomeKind.REPLIED:
             return RecordState.CONTACTED if current is RecordState.AT_RISK else current
         case OutcomeKind.WRITTEN_OFF:
-            return RecordState.WRITTEN_OFF
+            return _legal(current, RecordState.WRITTEN_OFF)
         case OutcomeKind.PAID_PARTIAL | OutcomeKind.NO_RESPONSE:
             return current
     return current
@@ -204,12 +243,22 @@ class Ledger:
         return [r for r in self._records.values() if not is_terminal(r.state)]
 
     def due_for_review(self, tick: Tick) -> list[Invoice]:
-        """Non-terminal records whose review tick has arrived.
+        """Records the automated loop should look at now.
 
         This is the decision-cadence gate. It is what keeps the reasoner at a
         few hundred calls per run rather than one per record per tick.
+
+        Excludes `UNATTENDED_STATES` as well as terminal ones. A record that
+        reached HUMAN_QUEUE because the payer complained never had its review
+        tick pushed out -- only the ESCALATE_HUMAN *action* does that -- so
+        without this filter the agent would carry on proposing actions on cases
+        a human had already taken over.
         """
-        return [r for r in self.active() if tick >= r.next_review_tick]
+        return [
+            r
+            for r in self.active()
+            if tick >= r.next_review_tick and r.state not in UNATTENDED_STATES
+        ]
 
     def payer_contacts_since(self, payer_id: str, tick: Tick) -> int:
         """Contacts to a payer at or after `tick`, across ALL of their invoices.
@@ -309,10 +358,19 @@ class Ledger:
         `due_tick` is None when the phrase named nothing resolvable, and the
         caller must not suppress contact in that case. See
         `ledger.clock.resolve_promise_phrase`.
+
+        The promise is always RECORDED; the state move is conditional. A payer
+        whose record already sits in HUMAN_QUEUE or DISPUTED can still send a
+        reply committing to a date -- a contact was often already in flight when
+        the escalation happened -- but that commitment must not pull the record
+        back into the automated loop, because a human owns it now. So the phrase
+        and the due tick are kept as information, the record stays where it is,
+        and `resolve_promise` will still let that payer pay. Promoting it back
+        to PROMISED would silently hand a human's case back to the machine.
         """
         record.promise_phrase = phrase
         record.promise_due_tick = due_tick
-        if due_tick is not None:
+        if due_tick is not None and RecordState.PROMISED in ALLOWED_TRANSITIONS[record.state]:
             self.transition(record, RecordState.PROMISED, tick)
 
     def finalise(self, tick: Tick) -> int:

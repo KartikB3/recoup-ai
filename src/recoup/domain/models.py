@@ -347,8 +347,15 @@ class Invoice(BaseModel):
 
     @property
     def outstanding_paise(self) -> Paise:
-        """Value still open on this invoice."""
-        return self.amount_paise - self.recovered_paise
+        """Value still open on this invoice. Never negative.
+
+        `Ledger.record_outcome` already clamps what it writes, so an overpayment
+        should not arise -- but this property feeds the reasoner's snapshot and
+        the metric table, and a negative receivable is not a meaningful quantity
+        in either. Clamping here means the invariant holds on the model itself
+        rather than resting on every writer's discipline.
+        """
+        return max(0, self.amount_paise - self.recovered_paise)
 
     def days_overdue(self, as_of: VirtualDate) -> int:
         """Days past the due date. Negative before it falls due.
