@@ -4,12 +4,13 @@
 
 Razorpay Buildathon · Track 03: AI Revenue Recovery · solo build.
 
-> ⚠️ **Status.** Phases 0–3 are complete: the structured proposer, validated
+> ⚠️ **Status.** Phases 0–3 and Phase 5 are complete: the structured proposer, validated
 > disk cache, model-failure circuit breaker and policy-approved batch insight
 > are wired, the cache holds 77 real model proposals and one real batch
 > insight, and an empty `ANTHROPIC_API_KEY` still reproduces the four-arm
 > Phase 2 numbers exactly. `v0.1-submittable` remains the untouched
-> deterministic floor.
+> deterministic floor. The three-view dashboard reads only local run artifacts
+> and keeps the real-model result visibly separate as a fifth arm.
 >
 > **Phase 4's live slice is built and verified offline. The one round trip
 > through the real Razorpay API has not been run yet** — see *Closing the live
@@ -124,7 +125,7 @@ cp .env.example .env                      # fill in test keys as needed
 recoup generate --seed 42 --count 126     # Phase 1, published seed-42 book
 recoup run --seed 42 --arm all --no-model # reproduces runs/seed42 exactly
 recoup metrics seed42                     # recompute from stored artifacts
-recoup dashboard                          # Phase 5
+recoup dashboard                          # offline; canonical seed42 + tiered fifth arm
 ```
 
 `recoup check-razorpay` creates one test-mode Payment Link to confirm credentials. It costs one unit of the 30-link budget.
@@ -147,6 +148,26 @@ Omit both flags only when you intend to buy new model output; without
 Only successful validated model outputs are ever written under
 `data/llm_cache/`; errors, refusals, truncation and missing credentials use the
 deterministic fallback and are never cached as if they came from the model.
+
+### Dashboard
+
+`recoup dashboard [RUN_ID] --port 8501` launches three views entirely from
+`runs/<id>/`; it never constructs a model or Razorpay client.
+
+- **Portfolio summary:** all four canonical arms remain side by side. When a
+  sibling `<id>-tiered` artifact exists, its real-model agent appears as a
+  labelled fifth column rather than replacing the deterministic agent. Losses,
+  bypassed policy and meaningful zeroes stay visible.
+- **Payer timeline:** selected by payer name, then invoice. The canonical
+  opening story is Netra Optics & Lenses: six `WAIT` decisions followed by a
+  veto under the verified RBI-hours source, with the circular's scope caveat on
+  screen.
+- **Raw audit:** filterable over the actual `audit.jsonl`, with exact-row JSON
+  inspection and a filtered JSONL download.
+
+The default is `seed42` when it exists, even if `seed42-tiered` was written
+later, because that is the recoverable deterministic floor the fifth arm must
+sit beside. Pass another run id to inspect a rehearsal or reconciled run.
 
 ---
 

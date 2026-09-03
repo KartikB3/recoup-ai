@@ -3,7 +3,8 @@
 **Track 03: AI Revenue Recovery · Razorpay Buildathon · Solo · ~7 days**
 Companion to `recoup-build-spec.md` (the *what*). This is the *how*.
 
-Status: **Phases 0-3 complete. Phase 4 is built and verified offline; its one live verification awaits the user. Phase 5 is next.** The structured Claude
+Status: **Phases 0-3 and Phase 5 are complete. Phase 4 is built and verified
+offline; its one live verification awaits the user. Phase 6 is next.** The structured Claude
 proposer, contract-aware input cache, spend guards and policy-approved
 aggregate artifact are wired, and the cache holds **real** model output — 77
 record proposals and one batch insight, bought for $2.09. `runs/seed42-tiered/`
@@ -28,6 +29,14 @@ replay clean over 394 rows — and **no test-mode link was spent doing it**
 (1 of 30 consumed, unchanged since Phase 0). The real round trip needs a tunnel
 and a browser, so it is the user's to run; ISS-039 explains why it must use a
 short horizon.
+
+**Phase 5** shipped the offline dashboard: a provenance-preserving five-column
+summary, a payer-name-first timeline and a filterable view over the exact
+JSONL. The default Netra Optics & Lenses story contains six deliberate waits
+and a verified RBI-hours veto with the circular's limiting scope caveat on
+screen. All three views run through Streamlit's app harness without a network
+call; 274 tests pass. ISS-044 explains why the fifth arm is a view-layer join
+across two honest run artifacts, and ISS-045 closes the installed-wheel path.
 Last updated: 2026-09-03
 
 ---
@@ -329,7 +338,7 @@ Unknown: whether the 30 is a lifetime cap or resets. It does not change the plan
 
 ---
 
-### Phase 5 — Dashboard
+### Phase 5 — Dashboard ✅ COMPLETE
 
 **~0.5 day. Hard stop.**
 
@@ -342,6 +351,12 @@ Three views, in this priority order:
 **Because framing is deferred to Phase 6:** build the timeline view keyed by payer *name*, not invoice ID, and pick one memorable payer in the seed data. That single choice costs an hour and keeps the product framing available without committing to it.
 
 **Gate:** all three views run off `runs/<id>/` with no live API calls. The dashboard must work offline.
+
+**Gate evidence (2026-09-03):** met. Streamlit's in-process app harness renders
+the summary, timeline and audit pages from the committed artifacts; the default
+story includes `WAIT`, `VETO`, verified `rule_source` and scope caveat. The raw
+view exposes 813 source rows with filters and exact-row inspection. Full gate:
+274 tests, ruff, format and mypy strict clean.
 
 **Model/effort:** `Sonnet 5` at effort `high` for Streamlit plumbing and the audit table — well-trodden framework code. Switch to `Opus 5` plus the `frontend-design` skill for the batch-summary view only. Consider `/fast` here; the iteration loop is tight and visual.
 

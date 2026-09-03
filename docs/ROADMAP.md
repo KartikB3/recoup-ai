@@ -5,8 +5,8 @@ Two horizons, kept deliberately separate. Do not let the second one leak into th
 
 **Maintenance:** re-scope at the close of every phase. Move completed items out of §1, move slipped items down, and add anything newly discovered.
 
-Last updated: 2026-09-03 — **Phase 4 built; its offline half is verified and
-its live half awaits the user. Phase 5 is next.** The live slice is complete in
+Last updated: 2026-09-03 — **Phase 5 is complete. Phase 6 is next. Phase 4's
+offline half is verified and its live half still awaits the user.** The live slice is complete in
 code: the agent allocates a capped payment-link budget from revealed demand,
 creates real test-mode links, and a signature-verified webhook reconciles a
 payment into the ledger as an ordinary append-only outcome row. The whole loop
@@ -31,12 +31,9 @@ deliberately deferred to the user.
 
 | # | Item | Phase | State |
 |---|---|---|---|
-| 10 | Structured-output reasoner + input-hash cache; preserve the deterministic fallback that landed in Phase 2 | 3 | ✅ done — real cache seeded, spend guards shipped |
 | 11 | Batch-level insight (§7b) — the cluster event. **Built in Phase 3; applied and rendered in Phase 6.** | 3 → 6 | 🟡 real model insight cached and policy-approved; Phase 6 application still pending |
-| 12 | Dashboard: batch summary, invoice timeline, raw audit, and rule sources/caveats | 5 | ⬜ |
 | 14 | Seven submission-form answers drafted | 6 | ⬜ |
 | 15 | Five-minute video | 7 | ⬜ |
-| 17 | Structured-output agent proposer over the same snapshot-only Protocol; the Phase 2 fallback already satisfies it | 3 | ✅ done — measured against held-out truth on 28 prose-only records |
 | 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ⬜ |
 | 22 | **Rule on `HARDSHIP_CLAIMED`** (OBS-002): either score it as a third false-intervention subtype or write down the decision that hardship contact is legitimate. | 6 | ⬜ assigned at the Phase 3 close |
 | 19 | Create the public GitHub repository and push | user decision | ⬜ local history and tag are ready |
@@ -103,6 +100,8 @@ Real money · real customers · real PII · anything where the LLM decides a num
 | 9 | Complete no-LLM floor | `v0.1-submittable` |
 | 13 | README boundary and metric table above the fold | Landed early at Phase 2 close |
 | 20 | Scarce-link allocation, live executor, verified webhook, ledger reconciliation | Phase 4; 262 offline tests, 0 test-mode links spent. ISS-039 to ISS-042; ISS-012 resolved |
+| 10, 17 | Structured-output proposer, validated cache, spend guards and deterministic fallback | Phase 3; 77 real record proposals, 0 scored false interventions in the tiered arm |
+| 12 | Offline dashboard: five-arm summary, named-payer timeline, filterable raw audit and source caveats | Phase 5; all three views exercised from local artifacts, 274 tests |
 
 ---
 

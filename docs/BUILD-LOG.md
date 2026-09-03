@@ -15,8 +15,8 @@ Append-only. One entry per phase close. Newest at the bottom.
 | 1 | Generator, clock, ledger (zero AI) | ✅ done | ✅ met | `00b3409`..`7fb21ce` |
 | 2 | Policy engine + baseline + metrics | ✅ done | ✅ met | `v0.1-submittable` |
 | 3 | LLM reasoner layer | ✅ done | ✅ met (gate amended, see entry) | `29acd0f`..`2f135ab` |
-| 4 | Razorpay live slice | ⬜ not started | — | — |
-| 5 | Dashboard | ⬜ not started | — | — |
+| 4 | Razorpay live slice | ✅ done | ⚠️ offline half met; live round trip is the user's to run | `77767c0`..`7490a86` |
+| 5 | Dashboard | ✅ done | ✅ met | `dc9f1a1` |
 | 6 | Evaluation, hardening, submission prose | ⬜ not started | — | — |
 | 7 | Video & submission | ⬜ not started | — | — |
 
@@ -689,6 +689,68 @@ Also: `httpx` added to the dev extra, for `fastapi.testclient`.
    the world is a replayable simulation. Real payers would need an online
    threshold rule.
 4. The public GitHub push remains the user's decision.
+
+## Phase 5 — offline dashboard
+
+**Date:** 2026-09-03
+**Model/effort used:** Codex (GPT-5), high
+**Gate:** ✅ met — all three Streamlit views exercised in-process against
+`runs/<id>/`; 274 tests pass offline; ruff, format and mypy strict clean
+**Commit / tag:** `dc9f1a1`
+
+**What was built**
+
+- `dashboard/app.py`: one offline Streamlit shell with run and view navigation.
+- `dashboard/data.py`: validated readers for metrics, opening/closing books and
+  every audit row; path traversal is refused and no subsystem capable of an API
+  call is imported.
+- `dashboard/views/summary.py`: the video-opening five-column evidence frame,
+  losses included, with bypassed policy distinct from numeric zero and rule
+  run-status notes beside every firing count.
+- `dashboard/views/timeline.py`: a payer-name-first story over virtual weeks,
+  one card per append-only event, including deliberate waits, vetoes, source
+  verification and scope caveats.
+- `dashboard/views/audit.py`: filters over the actual JSONL, exact raw-row
+  inspection and filtered JSONL download.
+- `recoup dashboard`: packaged Streamlit launcher with safe run ids and ports.
+
+**Key decisions**
+
+| Decision | Choice | Reasoning |
+|---|---|---|
+| Default evidence | `seed42`, even when the tiered run is newer | The deterministic floor is the frame the model arm must sit beside; modification time is not provenance. |
+| Five-arm presentation | Join `<id>` and `<id>-tiered` only in the view layer | One run contains four arms by design. The model result must be fifth, not a relabelled `agent` column (ISS-044). |
+| Default payer story | Selected by evidence score; currently Netra Optics & Lenses / `ASH-2026-0045` | It contains six `WAIT`s and one verified RBI-hours veto in the same invoice, satisfying both video beats without a staged fixture. |
+| Source badges | Verified regulatory / unverified exclusion / merchant N/A | Merchant configuration is not regulatory truth, and OBS-006's unverified path must remain visible even though live data does not trigger it. |
+| Dashboard package | Keep top-level frozen layout, include it in the wheel | Editable-only success would fail after a normal install (ISS-045). |
+| Visual stack | Streamlit + local CSS, no remote fonts or assets | The complete UI stays offline and the 0.5-day hard stop remains credible. |
+
+**Deviations from the plan**
+
+None in scope. The implementation adds a fifth summary column because the
+working agreement already requires the cost-tiered result beside the four
+canonical arms. The timeline remains keyed by payer name and then narrows to a
+single invoice, as planned.
+
+**Numbers**
+
+- Five visible scorecards: four from `runs/seed42/`, one real-model result from
+  `runs/seed42-tiered/`; every card retains its source run id.
+- Default payer story: 18 audit rows, six `WAIT`s, two vetoes; the RBI veto is
+  verified and its trade-receivables scope caveat renders on screen.
+- Raw default audit view: 813 rows, with row kind, verdict, policy rule,
+  executor and free-text search filters.
+- Seven dashboard acceptance tests added; 274 total tests pass. All are
+  offline, including all three rendered views.
+- Model spend: $0. Razorpay links consumed: 0. Running total remains 1 of 30.
+
+**Carried forward**
+
+1. Phase 6 must apply and render the already-approved batch insight; Phase 5
+   does not change its truthful `applied_to_ledger: false` state.
+2. OBS-002's hardship scoring decision and ISS-021's calibration write-up
+   remain Phase 6 obligations.
+3. The real Razorpay round trip and public push remain the user's decisions.
 
 ---
 

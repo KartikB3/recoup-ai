@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
+import sys
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -656,11 +658,54 @@ def reconcile(
 
 @app.command()
 def dashboard(
-    run_id: str = typer.Argument(None, help="Run id to open. Defaults to the latest."),
+    run_id: str = typer.Argument(
+        None, help="Run id to open. Defaults to canonical seed42 when present, else latest."
+    ),
     port: int = typer.Option(8501),
 ) -> None:
-    """Launch the Streamlit dashboard. (Phase 5)"""
-    _not_yet(5, "The dashboard")
+    """Launch the offline Streamlit dashboard. (Phase 5)"""
+    if run_id is not None and _SAFE_RUN_ID.fullmatch(run_id) is None:
+        typer.secho(
+            "Run id must be 1-64 letters, numbers, dots, underscores or hyphens.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=2)
+    if not 1 <= port <= 65535:
+        typer.secho("Port must be between 1 and 65535.", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=2)
+
+    import dashboard as dashboard_package
+
+    package_file = dashboard_package.__file__
+    script = Path(package_file).resolve().parent / "app.py" if package_file else Path()
+    if not script.is_file():
+        typer.secho(f"Dashboard entry point not found: {script}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
+
+    runs_root = (Path.cwd() / "runs").resolve()
+    command = [
+        sys.executable,
+        "-m",
+        "streamlit",
+        "run",
+        str(script),
+        "--server.port",
+        str(port),
+        "--",
+        "--runs-root",
+        str(runs_root),
+    ]
+    if run_id is not None:
+        command.extend(("--run-id", run_id))
+    typer.secho(
+        f"opening offline dashboard from {runs_root} on http://localhost:{port}",
+        fg=typer.colors.GREEN,
+    )
+    try:
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as exc:
+        raise typer.Exit(code=exc.returncode) from exc
 
 
 @app.command("check-razorpay")

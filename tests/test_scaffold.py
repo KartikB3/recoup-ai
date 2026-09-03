@@ -9,6 +9,10 @@ from __future__ import annotations
 
 import importlib
 import pkgutil
+import subprocess
+import tomllib
+from collections.abc import Sequence
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -121,16 +125,29 @@ def test_command_is_registered(command: str) -> None:
     assert result.exit_code == 0, result.output
 
 
-def test_remaining_unimplemented_command_fails_loudly() -> None:
-    """A not-yet-built command must exit non-zero and point at the plan.
+def test_dashboard_command_launches_streamlit_offline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The CLI passes a local runs root and never starts another Recoup subsystem."""
+    seen: list[Sequence[str]] = []
 
-    Silently succeeding with no output is how a phase gets marked done by
-    accident.
-    """
-    result = runner.invoke(app, ["dashboard"])
-    assert result.exit_code == 1
-    assert "Phase 5" in result.output
-    assert "IMPLEMENTATION-PLAN" in result.output
+    def fake_run(command: Sequence[str], *, check: bool) -> subprocess.CompletedProcess[str]:
+        assert check is True
+        seen.append(command)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    result = runner.invoke(app, ["dashboard", "seed42", "--port", "8765"])
+
+    assert result.exit_code == 0, result.output
+    assert "offline dashboard" in result.output
+    assert len(seen) == 1
+    command = list(seen[0])
+    assert command[1:4] == ["-m", "streamlit", "run"]
+    assert command[command.index("--server.port") + 1] == "8765"
+    assert command[command.index("--run-id") + 1] == "seed42"
+    assert Path(command[command.index("--runs-root") + 1]) == Path.cwd() / "runs"
+    project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    wheel_packages = project["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]
+    assert "dashboard" in wheel_packages
 
 
 def test_default_seed_count_and_tick_count_match_the_plan() -> None:

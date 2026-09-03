@@ -842,6 +842,63 @@ which command reproduces which run directory, and both are unspendable.
 
 ---
 
+### ISS-044 · 🟠 One selected run cannot contain the required five-arm comparison
+
+**Phase:** 5
+**What happened:** Every `metrics.json` correctly contains at most four arms.
+In `runs/seed42/`, `agent` is the deterministic fallback; in
+`runs/seed42-tiered/`, the same `agent` key is the real-model-at-first-review
+arm. A normal run selector therefore has only two bad outcomes: select
+`seed42` and omit the model evidence, or select `seed42-tiered` and put model
+output under a column a viewer reasonably reads as the deterministic agent.
+The working agreement explicitly requires the model arm to be a **fifth**
+column, never a replacement.
+**Why it matters:** The two directories encode a provenance boundary, not two
+versions of one result. Flattening them would repeat the exact relabelling error
+the documentation is designed to prevent, on the first frame of the video.
+**What we tried:** Rendering only the selected artifact was mechanically clean
+and semantically wrong. Hardcoding the published five numbers was rejected
+because the dashboard gate requires every view to run from `runs/<id>/` and a
+reconciled run must be able to change what appears. Adding a fifth pseudo-arm
+to `metrics.json` was also rejected: that file reports one run and should not
+silently acquire cross-run data.
+**Design consequence:** `comparison_scorecards` treats the documented
+`<id>` / `<id>-tiered` naming pair as a presentation join. It reads the four
+canonical columns from the base artifact and appends only the tiered agent as a
+labelled model-triage fifth column. Every scorecard carries its source run id
+and an explicit `is_model_output` bit. A test pins the run ids, ordering and
+23 → 0 harm result, so a later UI change cannot relabel the evidence.
+**Status:** RESOLVED — provenance-preserving cross-run presentation join,
+without changing either run artifact.
+
+---
+
+### ISS-045 · 🟡 The dashboard worked from a checkout but was absent from the wheel
+
+**Phase:** 5
+**What happened:** The frozen layout deliberately places Streamlit under the
+top-level `dashboard/` directory, while Hatch's wheel target packaged only
+`src/recoup`. The first CLI implementation located `dashboard/app.py` relative
+to the source checkout. `uv sync` in editable mode would work; an installed
+wheel could ship a `recoup dashboard` command whose entry point did not exist.
+**Why it matters:** This is the most expensive kind of packaging defect for a
+demo: every local test passes until the judge installs the project normally.
+It also made the CLI depend on the repository layout after installation rather
+than on the installed distribution.
+**What we tried:** Keeping the project-relative lookup was rejected even though
+it satisfied the immediate gate. Moving the dashboard under `src/recoup/`
+would package it, but violated the repository layout frozen in Phase 0.
+**Design consequence:** `dashboard` is now a real package included beside
+`src/recoup` in the Hatch wheel target. The CLI imports that package only when
+the command runs and locates `app.py` beside its installed `__init__.py`; the
+ordinary help path stays light. The launcher itself is exercised with the
+subprocess boundary mocked, and the three pages are exercised through
+Streamlit's in-process app harness.
+**Status:** RESOLVED — the planned top-level layout and an installable entry
+point now agree.
+
+---
+
 ## Entry template
 
 ```markdown

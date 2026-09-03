@@ -18,7 +18,7 @@ change is a design decision and belongs in `IMPLEMENTATION-PLAN.md` §0 instead.
 docs. An observation that stops being true gets deleted, not amended — and if
 it stopped being true because someone fixed it, that is an `ISSUES.md` entry.
 
-Last updated: 2026-09-03, at the Phase 4 close. Unless an entry says
+Last updated: 2026-09-03, at the Phase 5 close. Unless an entry says
 otherwise, figures are measured on the four canonical `runs/seed42/`
 artifacts, which use the no-key deterministic path. Figures for the
 cost-tiered arm come from `runs/seed42-tiered/`, where the agent uses 77
@@ -214,10 +214,10 @@ sources were verified at the issuing body in Phase 2, and the P1 e-mandate
 rules were never written because the mandate lane did not ship.
 
 **Why it matters.** Invariant 7's visible enforcement mechanism is the caveat
-chip an unverified rule renders with in the dashboard. Phase 5 will build that
-chip, and there is nothing in the data that triggers it — so the code path
-ships exercised only by unit fixtures, and the demo cannot show the mechanism
-working on a real citation.
+chip an unverified rule renders with in the dashboard. Phase 5 built that chip,
+and there is nothing in the data that triggers it — so the code path ships
+exercised only by a synthetic source fixture, and the demo cannot show the
+mechanism working on a real citation.
 
 The function's own docstring already argues, correctly, that an empty list is a
 truthful answer a hardcoded "none" is not. That reasoning is sound and this is
@@ -226,6 +226,13 @@ not a request to weaken it. It is a note that the *rendering* has no live case.
 Related and lower stakes: `RuleSource.scope_caveat` **is** populated on all
 three regulatory sources, including the load-bearing RBI one. That is the
 honesty mechanism that does have live data, and it is the one to put on screen.
+
+**Phase 5 result.** `source_status` returns a visible *Unverified · exclude from
+demo* state and an acceptance test pins it with a regulatory fixture. The
+summary and timeline render the scope caveat carried by every live regulatory
+source. On the default Netra timeline the RBI-hours veto therefore displays
+both *Verified at issuing body* and the limiting fact that the circular governs
+regulated-loan recovery rather than a merchant's own trade receivables.
 
 **What would change it.** Shipping the mandate lane (ROADMAP P1 #1) would
 introduce ISS-006's unverified e-mandate source and give the chip a real

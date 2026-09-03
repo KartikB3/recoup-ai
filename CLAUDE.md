@@ -4,16 +4,18 @@ Razorpay Buildathon, Track 03. Solo, ~7 days. Read `docs/IMPLEMENTATION-PLAN.md`
 
 ## Start here (cold session)
 
-**Phases 0–3 are complete and their gates are met.** The complete no-LLM floor
+**Phases 0–3 and Phase 5 are complete and their gates are met.** The complete no-LLM floor
 is tagged **`v0.1-submittable`**. **Phase 4 is built and its offline half is
-verified; one live round trip remains, and it is the user's to run. Phase 5 is
-next.**
+verified; one live round trip remains, and it is the user's to run. Phase 6 is
+next.** The Phase 5 dashboard is fully offline: five-column summary, named-payer
+timeline and filterable raw audit.
 
 Read in this order:
 
-1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, then Phase 5.
-2. `docs/BUILD-LOG.md` — the Phase 4 entry, then the Phase 3 close.
-3. `docs/ISSUES.md` — **ISS-039–042** are the Phase 4 record and **ISS-034–038**
+1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, then Phase 6.
+2. `docs/BUILD-LOG.md` — the Phase 5 entry, then the Phase 4 entry.
+3. `docs/ISSUES.md` — **ISS-044–045** are the Phase 5 record,
+   **ISS-039–042** are the Phase 4 record and **ISS-034–038**
    the Phase 3 one; together they are the best raw material in the file for the
    graded "Build Challenges" answer. ISS-017, ISS-024, ISS-025, ISS-027 and
    ISS-028–031 constrain later phases; ISS-021 remains a live obligation
@@ -40,10 +42,15 @@ Read in this order:
 
 The cache under `data/llm_cache/` is **77 real record proposals and one real
 batch insight**, bought for $2.09. Every entry is genuine model output.
-**262 tests, all offline. No Anthropic import on the empty-key execution path,
+**274 tests, all offline. No Anthropic import on the empty-key execution path,
 and no network on any test path.**
 
 Setup: `uv sync --extra dev`. Check: `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest`. Note `ruff format --check` — CI enforces it and the old check line here omitted it.
+
+Dashboard: `recoup dashboard` defaults to the canonical `seed42` evidence and
+joins only the sibling tiered agent as a labelled fifth column. Its default
+timeline is Netra Optics & Lenses / `ASH-2026-0045`: six `WAIT`s and one
+verified RBI-hours veto in the same invoice. It reads local run artifacts only.
 
 ## Spending money
 
