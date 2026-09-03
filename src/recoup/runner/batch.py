@@ -45,6 +45,7 @@ No `datetime.now()`, no `date.today()`. Every date in here comes from
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol, cast
@@ -68,6 +69,7 @@ from recoup.domain.models import (
     canonical_json,
 )
 from recoup.executor.base import NOT_EXECUTED, Executor
+from recoup.executor.budget import LinkAllocator, demand_from_log
 from recoup.executor.simulated import SimulatedExecutor
 from recoup.generator.generate import Batch, serialise
 from recoup.ledger.adjudicator import Adjudicator
@@ -493,6 +495,112 @@ def _apply_outcome(
         record_id=record.invoice_id,
         outcome=outcome,
     )
+
+
+class LiveRunDivergence(RuntimeError):
+    """The live pass did not make the same decisions as the pass it was planned from."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(
+            "the live pass diverged from the dry pass it allocated against, so the "
+            f"allocation describes a run that did not happen: {detail}"
+        )
+
+
+@dataclass
+class LiveRunOutcome:
+    """A live run and the free rehearsal that decided where its budget went."""
+
+    dry: RunResult
+    live: RunResult
+    allocator: LinkAllocator
+
+
+def _decision_fingerprint(result: RunResult) -> list[dict[str, Any]]:
+    """Every row, with the two fields a live pass is ALLOWED to change removed.
+
+    `executor` and `external_ref` are exactly the difference between making a
+    contact and making a contact through Razorpay. Everything else -- which
+    record, which tick, which intervention, which verdict, which rule, what the
+    world did back -- must be identical, or the run being measured is not the
+    run that was planned.
+    """
+    rows = []
+    for row in result.log.rows:
+        payload = row.model_dump(mode="json")
+        payload.pop("prev_row_hash", None)
+        action = payload.get("action")
+        if action is not None:
+            action.pop("executor", None)
+            action.pop("external_ref", None)
+        rows.append(payload)
+    return rows
+
+
+def assert_same_decisions(dry: RunResult, live: RunResult) -> None:
+    """Raise unless the two passes agree on everything but what was real."""
+    left, right = _decision_fingerprint(dry), _decision_fingerprint(live)
+    if len(left) != len(right):
+        raise LiveRunDivergence(f"{len(left)} rows in the dry pass, {len(right)} in the live one")
+    for index, (a, b) in enumerate(zip(left, right, strict=True)):
+        if a != b:
+            raise LiveRunDivergence(f"row {index} differs: {a} != {b}")
+
+
+def run_live_batch(
+    records: list[Invoice],
+    proposer: Proposer,
+    *,
+    seed: int,
+    run_id: str,
+    capacity: int,
+    executor_factory: Callable[[LinkAllocator], Executor],
+    policy_factory: Callable[[], PolicyGate] | None = None,
+    horizon: int = DEFAULT_HORIZON,
+    batch_reasoner: BatchReasoner | None = None,
+) -> LiveRunOutcome:
+    """Run the arm twice: once to reveal demand, once for real. Phase 4.
+
+    The scarce live budget has to be allocated across requests that are not
+    knowable when the book opens (see `executor.budget` -- the three largest
+    receivables in the seed-42 book never ask for a link at all). Because the
+    simulation is deterministic and no decision anywhere reads the executor, a
+    first pass with the simulated executor reveals exactly the requests the
+    second pass will make, at zero cost and zero API calls.
+
+    The second pass is then the same run with real objects attached to the
+    highest-value requests. `assert_same_decisions` proves that claim on every
+    invocation rather than asserting it in a docstring: if the two ever
+    disagreed, the allocation would describe a run that did not happen and the
+    honest thing is to stop.
+
+    Both passes get a FRESH policy engine, because `PolicyEngine` carries
+    per-run link accounting and a reused one would enter the live pass with the
+    dry pass's counters already spent.
+    """
+    dry = run_batch(
+        records,
+        proposer,
+        seed=seed,
+        run_id=run_id,
+        horizon=horizon,
+        policy=policy_factory() if policy_factory else None,
+        executor=SimulatedExecutor(run_id),
+        batch_reasoner=batch_reasoner,
+    )
+    allocator = LinkAllocator(demand_from_log(dry.log.rows), capacity)
+    live = run_batch(
+        records,
+        proposer,
+        seed=seed,
+        run_id=run_id,
+        horizon=horizon,
+        policy=policy_factory() if policy_factory else None,
+        executor=executor_factory(allocator),
+        batch_reasoner=batch_reasoner,
+    )
+    assert_same_decisions(dry, live)
+    return LiveRunOutcome(dry=dry, live=live, allocator=allocator)
 
 
 def write_run(result: RunResult, batch: Batch, out_dir: Path) -> Path:

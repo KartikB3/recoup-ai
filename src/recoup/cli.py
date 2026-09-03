@@ -11,8 +11,16 @@ import json
 import re
 from enum import StrEnum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
+
+if TYPE_CHECKING:
+    # Type-only. Every command imports what it needs inside its own body so
+    # that `recoup --help` does not pay for pydantic, pandas and the rest.
+    from recoup.executor.budget import LinkAllocator
+    from recoup.generator.generate import Batch
+    from recoup.runner.batch import BatchReasoner, Proposer, RunResult
 
 #: A run id becomes a directory name, so it may not traverse or escape `runs/`.
 _SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
@@ -26,6 +34,9 @@ app = typer.Typer(
 DEFAULT_SEED = 42
 DEFAULT_COUNT = 126
 DEFAULT_TICKS = 112  # 1 tick = 6 virtual hours -> 28 virtual days
+
+#: Committed JSON artifacts end with one newline, like every other run file.
+NEWLINE = "\n"
 
 
 class Arm(StrEnum):
@@ -56,6 +67,13 @@ def _not_yet(phase: int, what: str) -> None:
     raise typer.Exit(code=1)
 
 
+def _canonical(value: object) -> str:
+    """Canonical JSON for a committed artifact. Same serialiser as the run files."""
+    from recoup.domain.models import canonical_json
+
+    return canonical_json(value)
+
+
 def _console_safe(text: str) -> str:
     """Keep UTF-8 artifacts rich while remaining printable on CP-1252 Windows."""
     return text.replace("₹", "Rs")
@@ -84,6 +102,119 @@ def generate(
     typer.echo(f"spotlight {batch.meta.spotlight_invoice_id}")
 
 
+def _run_live_agent_arm(
+    batch: Batch,
+    proposer: Proposer,
+    *,
+    batch_reasoner: BatchReasoner | None,
+    seed: int,
+    run_id: str,
+    ticks: int,
+    capacity: int,
+    arm_dir: Path,
+    confirm: bool,
+) -> RunResult:
+    """Drive the two-pass live agent arm and report where the budget went.
+
+    Without `--confirm` the second pass runs against the fake client. That is
+    not a stub of the live path -- it IS the live path, with one object swapped
+    at the boundary, so the allocation, the session index, the audit rows and
+    the reconciliation are all exercised for free before a single one of the 30
+    test-mode links (ISS-001) is spent.
+    """
+    import os
+
+    from recoup.domain.enums import Arm as DomainArm
+    from recoup.executor.fake_razorpay import FakePaymentLinkClient
+    from recoup.executor.live_razorpay import (
+        LiveRazorpayExecutor,
+        PaymentLinkClient,
+        RazorpayPaymentLinkClient,
+    )
+    from recoup.executor.session import write_session
+    from recoup.policy.context import MerchantPolicy
+    from recoup.policy.engine import PolicyEngine
+    from recoup.runner.batch import run_live_batch
+
+    key_id = os.environ.get("RAZORPAY_KEY_ID", "")
+    callback_base = os.environ.get("RAZORPAY_CALLBACK_BASE_URL", "").rstrip("/")
+    callback_url = f"{callback_base}/razorpay/callback" if callback_base else None
+
+    client: PaymentLinkClient
+    if confirm:
+        try:
+            real = RazorpayPaymentLinkClient(key_id, os.environ.get("RAZORPAY_KEY_SECRET", ""))
+        except ValueError as exc:
+            typer.secho(str(exc), fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=1) from exc
+        client = real
+        typer.secho(
+            f"LIVE: creating up to {capacity} real test-mode payment links on {key_id}.",
+            fg=typer.colors.YELLOW,
+        )
+    else:
+        client = FakePaymentLinkClient()
+        key_id = key_id or "rzp_test_rehearsal"
+        typer.secho(
+            f"live path REHEARSAL against the fake client; up to {capacity} links would be "
+            "created. Re-run with --confirm to make them real.",
+            fg=typer.colors.CYAN,
+        )
+
+    executors: list[LiveRazorpayExecutor] = []
+
+    def build(allocator: LinkAllocator) -> LiveRazorpayExecutor:
+        executor = LiveRazorpayExecutor(
+            client,
+            allocator,
+            run_id=run_id,
+            arm=DomainArm.AGENT,
+            key_id=key_id,
+            callback_url=callback_url,
+        )
+        executors.append(executor)
+        return executor
+
+    outcome = run_live_batch(
+        batch.records,
+        proposer,
+        seed=seed,
+        run_id=run_id,
+        capacity=capacity,
+        executor_factory=build,
+        policy_factory=lambda: PolicyEngine(MerchantPolicy(link_budget=None)),
+        horizon=ticks,
+        batch_reasoner=batch_reasoner,
+    )
+
+    executor = executors[-1]
+    arm_dir.mkdir(parents=True, exist_ok=True)
+    write_session(executor.session, arm_dir)
+    (arm_dir / "link-allocation.json").write_text(
+        _canonical(outcome.allocator.report()) + NEWLINE, encoding="utf-8", newline=""
+    )
+
+    granted = len(executor.session.links)
+    typer.secho(
+        f"live links: {granted} created of a {capacity} budget, "
+        f"allocated across {outcome.allocator.demand_size} records that requested one.",
+        fg=typer.colors.GREEN,
+    )
+    for link in executor.session.links:
+        typer.echo(
+            f"  {link.invoice_id}  tick {link.tick}  {link.payment_link_id}  {link.short_url}"
+        )
+    for failure in executor.failures:
+        typer.secho(f"  live call FAILED, row logged as simulated: {failure}", fg=typer.colors.RED)
+    if confirm and granted:
+        typer.secho(
+            f"{granted} unit(s) of the 30-link test-mode budget consumed. "
+            "Update the running total in docs/ISSUES.md ISS-001.",
+            fg=typer.colors.YELLOW,
+        )
+    return outcome.live
+
+
 @app.command()
 def run(
     seed: int = typer.Option(DEFAULT_SEED, help="RNG seed. Both arms must share it."),
@@ -102,12 +233,25 @@ def run(
     run_id: str | None = typer.Option(
         None, help="Override the run directory name. Use it to avoid overwriting canonical runs."
     ),
+    confirm: bool = typer.Option(
+        False,
+        "--confirm",
+        help="With --executor live, create REAL payment links. Without it, live mode "
+        "rehearses the whole path against the fake client and spends nothing.",
+    ),
 ) -> None:
-    """Run the batch end to end and write runs/<id>/. (Phases 2-3)
+    """Run the batch end to end and write runs/<id>/. (Phases 2-4)
 
     A cached structured reasoner drives the agent when a key is configured;
     missing/empty credentials and any model failure preserve the exact
     deterministic Phase 2 fallback.
+
+    `--executor live` puts the agent arm's most valuable payment links through
+    the real Razorpay test-mode API. It runs the arm twice: once simulated, to
+    reveal which records actually ask for a link, and once for real, spending
+    the capped budget on the largest of those requests (ISS-001). Without
+    `--confirm` the second pass uses the fake client, which exercises every
+    line of the live path and costs nothing.
     """
     from dotenv import load_dotenv
 
@@ -119,12 +263,26 @@ def run(
     from recoup.policy.context import MerchantPolicy
     from recoup.policy.engine import PolicyEngine
     from recoup.reasoner.client import ClaudeReasoner
-    from recoup.runner.batch import AlwaysWait, PolicyGate, Proposer, run_batch, write_run
+    from recoup.runner.batch import (
+        AlwaysWait,
+        PolicyGate,
+        run_batch,
+        write_run,
+    )
 
-    if executor is ExecutorMode.live:
+    live = executor is ExecutorMode.live
+    if live and arm not in (Arm.agent, Arm.both, Arm.all):
         typer.secho(
-            "Live execution lands in Phase 4; Phase 2 only permits the deterministic "
-            "simulated executor.",
+            f"--executor live applies to the agent arm; {arm.value} has no live half.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    if live and run_id is None:
+        # A live run rewrites its directory and creates real objects. It does
+        # not get to default onto the canonical run id.
+        typer.secho(
+            "--executor live requires an explicit --run-id so no canonical run is overwritten.",
             fg=typer.colors.RED,
             err=True,
         )
@@ -189,16 +347,29 @@ def run(
             proposer = AlwaysWait()
             policy = None
 
-        result = run_batch(
-            batch.records,
-            proposer,
-            seed=seed,
-            run_id=run_id,
-            horizon=ticks,
-            policy=policy,
-            batch_reasoner=batch_reasoner,
-        )
         arm_dir = run_dir / domain_arm.value.lower()
+        if live and domain_arm is DomainArm.AGENT:
+            result = _run_live_agent_arm(
+                batch,
+                proposer,
+                batch_reasoner=batch_reasoner,
+                seed=seed,
+                run_id=run_id,
+                ticks=ticks,
+                capacity=live_budget,
+                arm_dir=arm_dir,
+                confirm=confirm,
+            )
+        else:
+            result = run_batch(
+                batch.records,
+                proposer,
+                seed=seed,
+                run_id=run_id,
+                horizon=ticks,
+                policy=policy,
+                batch_reasoner=batch_reasoner,
+            )
         write_run(result, batch, arm_dir)
         metric_inputs[domain_arm] = (result.records, result.log.rows)
         typer.echo(
@@ -223,8 +394,8 @@ def run(
     _, markdown_path = write_reports(report, run_dir)
     typer.secho(f"wrote {markdown_path}", fg=typer.colors.GREEN)
     typer.echo(_console_safe(markdown_path.read_text(encoding="utf-8")))
-    if live_budget != 30:
-        typer.echo("live_budget is reserved for Phase 4 and was not applied to this simulation")
+    if not live and live_budget != 30:
+        typer.echo("--live-budget applies to --executor live only; this run was simulated")
 
 
 @app.command()
