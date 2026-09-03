@@ -810,6 +810,38 @@ non-optional. Discharged:
 
 ---
 
+### ISS-043 · 🟠 Committing a real cache silently broke the documented reproduction command
+
+**Phase:** 4 (caused in Phase 3)
+**What happened:** The README quickstart and the Phase 2 gate both read
+`recoup run --seed 42 --arm all`, documented as the deterministic no-key run
+that produces `runs/seed42/`. Once 78 real cache entries were committed in
+Phase 3, that command hit **78 of 126 tick-0 lookups (61.9%)** and produced the
+*cost-tiered* numbers instead — and, because the run id defaults to `seed42`,
+wrote them over the canonical artifacts.
+**Why it matters:** The whole pitch is determinism and replay. A judge who
+clones the repository and follows the README would get numbers that do not
+match the README, and would overwrite the evidence in the same command.
+`ANTHROPIC_API_KEY` being empty is no protection: a cache read needs no
+credential. `DEFAULT_CACHE_ROOT` was hardcoded with no override, so there was
+**no way at all** to reproduce `runs/seed42/` from a clean checkout.
+**What we tried:** First reached for `--cache-root`, pointing the reasoner at an
+empty directory. Rejected: it reproduces the artifacts by accident of an empty
+path rather than by saying what is meant, and a stale or mistyped path would
+silently produce a third set of numbers. Also considered gating cache reads on
+the key, which is worse — it makes behaviour depend on an environment variable
+that is supposed to be irrelevant to the deterministic path.
+**Design consequence:** `--no-model` bypasses the reasoner entirely and hands
+the agent arm `DeterministicFallback` and `DeterministicBatchFallback` directly.
+It cannot read a cache and cannot call the API, so it is safe by construction
+rather than by discipline. Verified byte-identical: `recoup run --arm all
+--no-model` into `runs/seed42/` leaves `git status` clean. The README now names
+which command reproduces which run directory, and both are unspendable.
+**Status:** RESOLVED — flag shipped, guarded by
+`test_no_model_reads_no_cache_and_constructs_no_client`, docs corrected.
+
+---
+
 ## Entry template
 
 ```markdown

@@ -122,17 +122,31 @@ uv sync                                   # or: pip install -e ".[dev]"
 cp .env.example .env                      # fill in test keys as needed
 
 recoup generate --seed 42 --count 126     # Phase 1, published seed-42 book
-recoup run --seed 42 --arm all            # four arms; model cache/fallback in Phase 3
+recoup run --seed 42 --arm all --no-model # reproduces runs/seed42 exactly
 recoup metrics seed42                     # recompute from stored artifacts
 recoup dashboard                          # Phase 5
 ```
 
 `recoup check-razorpay` creates one test-mode Payment Link to confirm credentials. It costs one unit of the 30-link budget.
 
-The full batch runs with `ANTHROPIC_API_KEY` empty or unset. With a key, only
-successful validated model outputs are written under `data/llm_cache/`; errors,
-refusals, truncation and missing credentials use the deterministic fallback and
-are never cached as if they came from the model.
+### Which command reproduces which run
+
+`data/llm_cache/` holds **real committed model output** — 77 record proposals
+and one batch insight. It is read whether or not `ANTHROPIC_API_KEY` is set, so
+the flag you pass decides which of the two committed runs you get (ISS-043):
+
+| Command | Reproduces | Model output |
+|---|---|---|
+| `recoup run --seed 42 --arm all --no-model` | `runs/seed42/` — the deterministic four arms | none: no cache reads, no API calls |
+| `recoup run --seed 42 --arm all --cache-only --run-id seed42-tiered` | `runs/seed42-tiered/` — the cost-tiered arm | the 77 committed proposals, replayed from disk |
+
+Both are byte-identical to what is committed, and **neither can spend money**.
+Omit both flags only when you intend to buy new model output; without
+`--cache-only` a configured key bills for every uncached record (ISS-035).
+
+Only successful validated model outputs are ever written under
+`data/llm_cache/`; errors, refusals, truncation and missing credentials use the
+deterministic fallback and are never cached as if they came from the model.
 
 ---
 

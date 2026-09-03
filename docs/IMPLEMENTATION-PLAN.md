@@ -223,10 +223,10 @@ Estimates assume solo, focused days. "Gate" = do not proceed until true.
 
 **Merchant-policy rules — label them merchant-configured, never regulatory:** max 4 contacts / payer / 30 days; ≥72h spacing; max 3 payment links / invoice; hard stop on `DISPUTED`; escalate above a configurable value; global 30-link API budget. **Do not invent a regulatory retry cap** — no verified source exists, and getting caught inventing a regulation is worse than citing none.
 
-**Gate — met and audit-hardened:** `recoup run --seed 42 --arm both` runs end to
+**Gate — met and audit-hardened:** `recoup run --seed 42 --arm both --no-model` runs end to
 end and produces `runs/seed42/metrics.md` with control, baseline, baseline +
 policy and agent filled in. `both` remains the compatible gate spelling and is
-an alias for all four arms; `--arm all` is the explicit spelling. The fourth
+`--no-model` was added in Phase 4 (ISS-043) and is now part of the gate command: the committed cache is read regardless of the key, so without it this no longer reproduces the deterministic artifacts. an alias for all four arms; `--arm all` is the explicit spelling. The fourth
 arm holds the proposer constant to isolate policy value. Evidence and numbers
 are in `BUILD-LOG.md`; `v0.1-submittable` preserves the original three-arm
 floor and is not moved by post-tag hardening.

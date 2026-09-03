@@ -40,6 +40,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/recoup"]
+# Ships the py.typed marker so importers outside src/ (webhook/) see real types.
+artifacts = ["src/recoup/py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -61,7 +63,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
-files = ["src/recoup"]
+files = ["src/recoup", "webhook"]
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]

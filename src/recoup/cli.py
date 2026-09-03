@@ -285,6 +285,11 @@ def run(
     max_api_calls: int | None = typer.Option(
         None, help="Hard ceiling on model calls this run. Spend guard; unset means no ceiling."
     ),
+    no_model: bool = typer.Option(
+        False,
+        "--no-model",
+        help="Deterministic fallback only: no cache reads, no API calls. Reproduces runs/seed42.",
+    ),
     run_id: str | None = typer.Option(
         None, help="Override the run directory name. Use it to avoid overwriting canonical runs."
     ),
@@ -317,7 +322,9 @@ def run(
     from recoup.metrics.report import write_reports
     from recoup.policy.context import MerchantPolicy
     from recoup.policy.engine import PolicyEngine
+    from recoup.reasoner.batch_insight import DeterministicBatchFallback
     from recoup.reasoner.client import ClaudeReasoner
+    from recoup.reasoner.fallback import DeterministicFallback
     from recoup.runner.batch import (
         AlwaysWait,
         PolicyGate,
@@ -375,20 +382,29 @@ def run(
         raise typer.Exit(code=1)
     run_dir = Path("runs") / run_id
     metric_inputs = {}
+    # `--no-model` bypasses the reasoner entirely rather than pointing it at an
+    # empty cache. A committed cache is read whether or not a key is set, so
+    # once real entries exist the no-key run stops being the deterministic run
+    # the canonical artifacts describe (ISS-043). Using the fallback components
+    # directly is the only spelling that cannot read a cache, cannot call the
+    # API, and is obviously the thing that produced `runs/seed42/`.
     agent_reasoner = (
         ClaudeReasoner(cache_only=cache_only, max_api_calls=max_api_calls)
-        if DomainArm.AGENT in selected
+        if DomainArm.AGENT in selected and not no_model
         else None
     )
 
     for domain_arm in selected:
         proposer: Proposer
         policy: PolicyGate | None
-        batch_reasoner = None
+        batch_reasoner: BatchReasoner | None = None
         if domain_arm is DomainArm.AGENT:
-            assert agent_reasoner is not None
-            proposer = agent_reasoner
-            batch_reasoner = agent_reasoner
+            if agent_reasoner is None:
+                proposer = DeterministicFallback()
+                batch_reasoner = DeterministicBatchFallback()
+            else:
+                proposer = agent_reasoner
+                batch_reasoner = agent_reasoner
             # A fresh engine owns per-run link-budget state. The simulated
             # comparison leaves the Phase 4 live budget disabled.
             policy = PolicyEngine(MerchantPolicy(link_budget=None))

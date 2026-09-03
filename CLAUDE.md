@@ -50,8 +50,11 @@ Setup: `uv sync --extra dev`. Check: `uv run ruff check . && uv run ruff format 
 The balance is small and a partial cache plus a live key is unbounded spend
 (ISS-035). Rules:
 
-- **Every run that is not deliberately buying something takes `--cache-only`.**
-  Without it, `recoup run --arm agent` bills for every uncached record.
+- **Every run that is not deliberately buying something takes `--cache-only`
+  or `--no-model`.** Without one of them, `recoup run --arm agent` bills for
+  every uncached record. `--no-model` reproduces `runs/seed42/`; `--cache-only`
+  reproduces `runs/seed42-tiered/`. The committed cache is read regardless of
+  whether a key is set, so an empty key is not a guard (ISS-043).
 - Buy with `recoup seed-cache`, never with `recoup run`. It is a dry run by
   default and needs `--confirm`.
 - Use `--run-id` for any new arm. `runs/seed42/` must not be overwritten.

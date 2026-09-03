@@ -460,3 +460,31 @@ def test_default_client_caps_sdk_retries_below_the_sdk_default(tmp_path: Path) -
     )
     reasoner.propose(_snapshots()[0], 0)
     assert seen == {"max_retries": DEFAULT_MAX_RETRIES}
+
+
+def test_no_model_reads_no_cache_and_constructs_no_client(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`--no-model` must reproduce the deterministic run whatever is on disk.
+
+    A committed cache is read whether or not a key is set, so once real entries
+    exist the empty-key run stops being the run `runs/seed42/` describes. This
+    is the guard for ISS-043.
+    """
+    from typer.testing import CliRunner
+
+    import recoup.reasoner.client as client_module
+    from recoup.cli import app
+
+    def forbidden(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("--no-model must not construct a ClaudeReasoner")
+
+    monkeypatch.setattr(client_module, "ClaudeReasoner", forbidden)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-not-used")
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        app, ["run", "--arm", "agent", "--ticks", "4", "--no-model", "--run-id", "guard"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "reasoner:" not in result.output
