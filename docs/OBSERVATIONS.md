@@ -18,13 +18,15 @@ change is a design decision and belongs in `IMPLEMENTATION-PLAN.md` §0 instead.
 docs. An observation that stops being true gets deleted, not amended — and if
 it stopped being true because someone fixed it, that is an `ISSUES.md` entry.
 
-Last updated: 2026-09-03, at the Phase 3 implementation checkpoint. Unless an
-entry says otherwise, figures are measured on the four canonical
-`runs/seed42/` artifacts using the no-key deterministic path.
+Last updated: 2026-09-03, at the Phase 3 close. Unless an entry says
+otherwise, figures are measured on the four canonical `runs/seed42/`
+artifacts, which use the no-key deterministic path. Figures for the
+cost-tiered arm come from `runs/seed42-tiered/`, where the agent uses 77
+real model proposals at first review and the deterministic ladder after.
 
 ---
 
-## OBS-001 · The proposer is close to neutral; the policy engine carries the result
+## OBS-001 · The policy engine carries the result; the proposer trades recovery for harm
 
 **Measured.** With the proposer held constant, policy moves 459 → 161 contacts,
 104 → 23 false interventions and 62.3% → 56.5% value recovery. With policy held
@@ -45,7 +47,8 @@ rather than a weak one — the bar is now precisely measured (57.8% value at 157
 contacts, 23 false interventions), so any model gain is legible instead of
 confounded. But it means Phase 3 cannot justify itself on per-record recovery.
 It has to earn its place on what the ladder structurally *cannot* do: reading
-the free text (see OBS-002 and OBS-003) and the batch-level cluster insight
+the free text (see OBS-002, and ISS-036 for the result) and the batch-level
+cluster insight
 (spec §7b, ROADMAP P0 #11). Both are already P0. This observation is the
 argument for why they, not recovery percentage, are the Phase 3 headline.
 
@@ -53,10 +56,21 @@ argument for why they, not recovery percentage, are the Phase 3 headline.
 more likely and more interesting — one that holds recovery flat while cutting
 the residual harm categories below.
 
-**Phase 3 checkpoint.** The structured proposer is now wired, but no Anthropic
-key is configured and the canonical agent still uses the exact deterministic
-per-record fallback. These numbers therefore remain the bar for the model, not
-model performance, and must not be relabelled as an LLM result.
+**Phase 3 result.** The bar held and the model did not clear it on recovery,
+which is the outcome this observation predicted. With 77 real model proposals at
+first review, `runs/seed42-tiered/` records 54.43% value recovery against the
+ladder's 57.75% — the proposer *costs* 3.32 points. It buys 157 → 104 contacts
+and 23 → 0 scored false interventions.
+
+So the framing above is confirmed rather than overturned, with one correction:
+the model's contribution is not "roughly neutral", it is a **deliberate trade of
+recovery for harm**, of the same shape and smaller size than the trade the
+policy engine already makes. The four canonical `runs/seed42/` numbers remain
+deterministic-fallback numbers and must never be relabelled as an LLM result;
+the model numbers live in `runs/seed42-tiered/` and are labelled as a
+cost-tiered arm. Note also ISS-038: the recovery column cannot reward correct
+escalation, so 54.43% is a floor on the model's real-world value, not a
+measurement of it.
 
 ---
 
@@ -102,42 +116,23 @@ hardship contact is legitimate because the payer still owes the money and the
 merchant is entitled to ask. Both are defensible. Silence is not, because the
 flag exists and the behaviour model uses it.
 
+**Phase 3 evidence.** All 12 hardship records were seeded and scored. The ladder
+contacts 12 of 12; the model contacts 5, so 58% suppression — much the weakest
+of the three categories, against 100% for both scored ones. The five are reasoned
+rather than missed. On `ASH-2026-0089` the model's stated ground is that *"the
+payer has explicitly asked for a card link, so sending one addresses the named
+obstacle rather than adding pressure."*
+
+That sharpens the open question instead of answering it. The model is drawing a
+distinction the flag cannot express — hardship that needs breathing room versus
+hardship where the payer has named the mechanism they want — and the project
+still has not decided which of those counts as harm. Deciding it is now a
+prerequisite for scoring the category, not merely an option.
+
 Hardship is also the strongest Phase 3 case in the book: it is signalled in
 prose (`corpus/payer_notes.yaml`, `corpus/email_replies.yaml` carry `HARDSHIP`
 signals) and nowhere in the structured fields, so it is exactly the thing a
 snapshot-reading ladder cannot catch and a text-reading model can.
-
----
-
-## OBS-003 · False interventions have an information floor near 15, not zero
-
-**Measured.** Splitting the agent's 23 false interventions by whether the
-snapshot carries any signal at all:
-
-| Flag | Signal in snapshot? | Records contacted (agent) | Suppression |
-|---|---|---:|---:|
-| `DISPUTED` | Yes — `state == DISPUTED` or `free_text.dispute_description` | 3 / 18 | 83% |
-| `ALREADY_PAID_UNRECONCILED` | **No** — the ledger shows money outstanding | 8 / 10 | 20% |
-
-**Why it matters.** The two numbers are not comparable and should never be read
-as one. Where the agent has a signal it suppresses 83% of contacts; where it
-has none it suppresses 20%, and that 20% is incidental — a by-product of
-contacting less overall, not of detection.
-
-This sets a floor. Under the current snapshot, no contacting arm can drive
-false interventions to zero, because ~15 of them are against records whose only
-distinguishing fact is held out by construction. Reporting "23" without this
-split invites the question "why not zero?", and the answer is a ceiling, not a
-failure.
-
-It also means the residual 8 disputed contacts — not the 15 — are the real
-Phase 3 target, and they are a small number. Phase 1 found 6 of 18 disputes are
-prose-only; those are where the remaining headroom is.
-
-**What would change it.** A reconciliation signal in the snapshot (a bank-feed
-or settlement-status field) would make already-paid detectable and move the
-floor. That is a real product feature, not a demo one, and belongs in
-`ROADMAP.md` §2.2 rather than the seven days.
 
 ---
 
@@ -188,12 +183,16 @@ every record**. The disk cache is therefore a *cross-run* accelerator and the
 offline-demo mechanism — it is not an in-run one, and it cannot be. The first
 full run pays full price, and so does any run whose snapshots shift.
 
-**Phase 3 checkpoint.** The wrapper now performs 473 lookups on the canonical
-agent run: 472 record decisions plus one aggregate call. With no key and no real
-cache entries it reports 0 hits, 0 model calls and 473 fallbacks. A full-book
-fake-transport test proves 100% hits and zero client calls on a second identical
-run, but that is implementation evidence, not a seeded demo cache. ISS-033 keeps
-the real cache/evaluation gate open.
+**Phase 3 measurement.** The estimate above was high at the top of its range.
+Measured against a real balance, a record call at `effort: "medium"` costs about
+**$0.021**, so a full 472-call arm is about **$10** rather than $25. Actual spend
+was **$2.09** in total: one batch insight at roughly $0.45, and 77 record calls.
+Measured inputs are 1,330 tokens per record call (841 system, ~454 snapshot) and
+about 57,800 tokens for the whole opening book on the aggregate call.
+
+Two things the numbers did not change. Caching is still cross-run only, for the
+reason above. And the first full run still pays full price — which is precisely
+why no full run was bought.
 
 **Why it matters.** Do not budget Phase 3 as though caching amortises within a
 run. Assume full price per full run, and expect to want several — a schema
@@ -234,6 +233,7 @@ than implying the dashboard has been seen doing it.
 
 ---
 
+
 ## OBS-007 · `--arm both` now selects four arms
 
 `cli.py` keeps `both` as the documented Phase 2 gate spelling while it now
@@ -244,3 +244,35 @@ Harmless, and deliberately preserved so the gate command in
 `IMPLEMENTATION-PLAN.md` keeps working. Noted only because "both" naming four
 things is the kind of detail that reads as sloppiness to someone encountering
 it cold in a demo, and the mitigation is to type `--arm all` on video.
+
+## OBS-008 · Escalation is unrewarded, so the recovery column understates the reasoner
+
+**Measured.** `ESCALATE_HUMAN` carries `ends_automation=True` and
+`review_ticks=REVIEW_NEVER`, and moves a record to `HUMAN_QUEUE`. The model
+proposes it for 49 of the 77 seeded records — Rs 1,01,38,277, about 40% of book
+value — at first review. The simulation models no human collector, so no record
+is ever recovered *because* it was escalated.
+
+**Why it matters.** The reasoner's single most characteristic behaviour is
+recognising a blocker that automated chasing cannot clear — a place-of-supply
+error crediting GST to the wrong state, a vendor-master rebuild, a payer who has
+already paid — and handing it to a person. In the metric table every one of
+those scores as forgone recovery. The 3.32-point cost in `runs/seed42-tiered/`
+is therefore a **floor on the model's value, not a measurement of it**, and the
+gap is not small: it is whatever fraction of Rs 1.01 crore a human collector
+would actually resolve.
+
+This is why Phase 3 does not report a recovery beat, and why the plan's original
+"beat the policy baseline on recovery" task was retired rather than failed. A
+full model arm would have produced a number that looks like a verdict on the
+reasoner and is really a verdict on the simulation's boundary. See ISS-038.
+
+**What would change it.** A modelled human-resolution rate on `HUMAN_QUEUE` —
+even a crude one, say a fixed probability of resolution within N ticks, stated as
+an assumption — would let escalation earn recovery and make the comparison fair.
+That is a simulation change, not a product change, and it is the single highest-
+value thing an evaluation phase could add. It must be introduced as a *declared
+assumption with a sensitivity range*, never as a silent constant, or it becomes a
+dial that manufactures the result.
+
+---

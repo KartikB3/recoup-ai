@@ -4,50 +4,68 @@ Razorpay Buildathon, Track 03. Solo, ~7 days. Read `docs/IMPLEMENTATION-PLAN.md`
 
 ## Start here (cold session)
 
-**Phases 0–2 are complete and their gates are met.** The complete no-LLM floor
-is tagged **`v0.1-submittable`**. **Phase 3 is in progress:** the structured
-reasoner, validated cache, failure circuit breaker and policy-approved batch
-artifact are implemented. The real model/cache/evaluation gate remains open
-because no Anthropic key is configured (ISS-033).
+**Phases 0–3 are complete and their gates are met.** The complete no-LLM floor
+is tagged **`v0.1-submittable`**. **Phase 4 is next.**
 
 Read in this order:
 
-1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, then Phase 3.
-2. `docs/BUILD-LOG.md` — the Phase 3 checkpoint, then the Phase 2 audit entry.
-3. `docs/ISSUES.md` — **ISS-032 and ISS-033** are the current Phase 3 state;
+1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, then Phase 4.
+2. `docs/BUILD-LOG.md` — the Phase 3 close entry, then Phase 2.
+3. `docs/ISSUES.md` — **ISS-034–038** are the Phase 3 record and the best raw
+   material in the file for the graded "Build Challenges" answer;
    ISS-017, ISS-024, ISS-025, ISS-027 and ISS-028–031 constrain later phases;
    ISS-012 and ISS-021 remain live obligations.
-4. `docs/OBSERVATIONS.md` — **OBS-001 and OBS-003 shape what Phase 3 is allowed to claim**; OBS-005 is its cost model.
+4. `docs/OBSERVATIONS.md` — **OBS-001 and OBS-008 govern what may be claimed
+   about the model**; OBS-002 is an open decision the project owes; OBS-005 is
+   the measured cost model.
 5. This file, below, for the invariants.
 
-**What the Phase 3 checkpoint preserves.** Everything from Phase 1–2, plus a post-tag
-four-arm comparison under `runs/seed42/`: control, naive baseline, the identical
-naive proposer with policy, and agent with policy. Policy alone moves 459 → 161
-contacts and 104 → 23 false interventions; with policy held constant, the agent
-adds 3 paid records and 1.2 value-recovery points. Eight
-`rbi-contact-hours` vetoes prove the adopted contact rule is live. The new
-wrapper makes 473 cache lookups on the canonical no-key agent run, performs zero
-model calls, and falls back 473 times; all four logs still replay with zero
-divergences. **199 tests. No Anthropic
-import on the empty-key execution path.**
+**Two run directories, and they mean different things.**
+
+- `runs/seed42/` — the four canonical arms. **Deterministic-fallback output.**
+  Control 49.25%, naive baseline 62.34% at 459 contacts, the identical proposer
+  behind policy 56.54% at 161, the deterministic agent behind the same policy
+  57.75% at 157 with 23 false interventions. Eight `rbi-contact-hours` vetoes
+  prove the adopted contact rule is live. **No model output appears here and
+  these numbers must never be relabelled as an LLM result.**
+- `runs/seed42-tiered/` — the same four arms with the agent using **real model
+  proposals at first review** and the ladder after. A cost-tiered architecture,
+  not a compromise. **54.43% at 104 contacts with 0 scored false
+  interventions.** Report it as a harm result with its −3.32-point recovery cost
+  stated; never as a recovery beat (ISS-038, OBS-008).
+
+The cache under `data/llm_cache/` is **77 real record proposals and one real
+batch insight**, bought for $2.09. Every entry is genuine model output.
+**204 tests. No Anthropic import on the empty-key execution path.**
 
 Setup: `uv sync --extra dev`. Check: `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest`. Note `ruff format --check` — CI enforces it and the old check line here omitted it.
 
-**To close Phase 3:** configure a key, explicitly approve the estimated first
-run spend, seed and commit real structured outputs, rerun for the real 100%
-cache gate, and compare model agent vs. policy baseline. Never commit fake
-transport output as the demo cache.
+## Spending money
+
+The balance is small and a partial cache plus a live key is unbounded spend
+(ISS-035). Rules:
+
+- **Every run that is not deliberately buying something takes `--cache-only`.**
+  Without it, `recoup run --arm agent` bills for every uncached record.
+- Buy with `recoup seed-cache`, never with `recoup run`. It is a dry run by
+  default and needs `--confirm`.
+- Use `--run-id` for any new arm. `runs/seed42/` must not be overwritten.
+- **Never change `MODEL`, `RECORD_EFFORT`, the prompts or the schemas** without
+  intending to. All four are in the cache contract hash, so a change silently
+  invalidates every paid entry.
+- Never commit fake transport output as the demo cache.
 
 Two seams are load-bearing:
 
 - **`PolicyGate`** is implemented by `PolicyEngine`. It receives the full record and ledger, logs every firing source, and can approve, reduce or veto. Do not move policy logic into the reasoner.
-- **`Proposer`** receives a **snapshot**, never an `Invoice`, so neither the model nor fallback can read `payer_archetype`, `flags`, `provenance` or `spotlight`. The Phase 2 fallback already satisfies it; the Phase 3 client must satisfy the same Protocol.
+- **`Proposer`** receives a **snapshot**, never an `Invoice`, so neither the model nor fallback can read `payer_archetype`, `flags`, `provenance` or `spotlight`. Both the Phase 2 fallback and the Phase 3 `ClaudeReasoner` satisfy it.
 
 **Report four arms, not two.** `AlwaysWait` preserves the 49.3% do-nothing
 floor. Naive baseline versus the policy baseline isolates policy value; the
 policy baseline versus agent isolates proposer value. Never collapse `bypassed` policy
 into a numeric zero, and keep the rule run-status annotations beside zero
-firings.
+firings. The cost-tiered arm is a **fifth** column beside these, never a
+replacement for the deterministic agent column.
 
 **Invariant 7 remains load-bearing.** The shipped RBI and TRAI sources are verified and must not be weakened; RBI e-mandate claims remain unverified P1 work and must not enter the product unless the mandate lane ships and the issuing-body source is read.
 

@@ -5,13 +5,13 @@ Two horizons, kept deliberately separate. Do not let the second one leak into th
 
 **Maintenance:** re-scope at the close of every phase. Move completed items out of §1, move slipped items down, and add anything newly discovered.
 
-Last updated: 2026-09-03 — **Phase 3 implementation checkpoint.** Structured
-record output, validated disk caching, deterministic failure paths and the
-policy-approved aggregate artifact are built. The no-key four-arm run and all
-replays remain green. A real Anthropic run, committed model cache and measured
-model comparison remain pending because no key is configured (ISS-033).
-`v0.1-submittable` remains untouched. The public push remains deliberately
-deferred to the user.
+Last updated: 2026-09-03 — **Phase 3 closed. Phase 4 is next.** The cache holds
+real model output: 77 record proposals and one batch insight, for $2.09. The
+cost-tiered arm in `runs/seed42-tiered/` cuts scored false interventions
+**23 → 0** for 3.32 recovery points. The four canonical `runs/seed42/` arms are
+untouched. The full-book model arm was deliberately not bought (ISS-038,
+OBS-008). `v0.1-submittable` remains untouched. The public push remains
+deliberately deferred to the user.
 
 ---
 
@@ -21,12 +21,12 @@ deferred to the user.
 
 | # | Item | Phase | State |
 |---|---|---|---|
-| 10 | Structured-output reasoner + input-hash cache; preserve the deterministic fallback that landed in Phase 2 | 3 | 🟡 code + fake-transport cache gate green; real cache pending key |
-| 11 | Batch-level insight (§7b) — the cluster event. **Built in Phase 3; applied and rendered in Phase 6.** | 3 → 6 | 🟡 fallback artifact + policy approval built; live model call and Phase 6 application pending |
+| 10 | Structured-output reasoner + input-hash cache; preserve the deterministic fallback that landed in Phase 2 | 3 | ✅ done — real cache seeded, spend guards shipped |
+| 11 | Batch-level insight (§7b) — the cluster event. **Built in Phase 3; applied and rendered in Phase 6.** | 3 → 6 | 🟡 real model insight cached and policy-approved; Phase 6 application still pending |
 | 12 | Dashboard: batch summary, invoice timeline, raw audit, and rule sources/caveats | 5 | ⬜ |
 | 14 | Seven submission-form answers drafted | 6 | ⬜ |
 | 15 | Five-minute video | 7 | ⬜ |
-| 17 | Structured-output agent proposer over the same snapshot-only Protocol; the Phase 2 fallback already satisfies it | 3 | 🟡 wired and tested; model evaluation pending key |
+| 17 | Structured-output agent proposer over the same snapshot-only Protocol; the Phase 2 fallback already satisfies it | 3 | ✅ done — measured against held-out truth on 28 prose-only records |
 | 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ⬜ |
 | 19 | Create the public GitHub repository and push | user decision | ⬜ local history and tag are ready |
 
@@ -36,6 +36,21 @@ proposer behind policy gets 56.5% with 161; the deterministic agent behind the
 same policy gets 57.8% with 157. Every later table must preserve all four
 columns: the middle pair isolates policy value, and the final pair isolates
 proposer value.
+
+**A fifth column joined it in Phase 3.** `runs/seed42-tiered/` is the same four
+arms with the agent using real model proposals at first review and the ladder
+after — a cost-tiered architecture, not a compromise. It records 54.43% with 104
+contacts and **0** scored false interventions against the ladder arm's 23. Report
+it as a harm result with its recovery cost stated, never as a recovery beat
+(ISS-038, OBS-008). Keep the two run directories distinct: `runs/seed42/` is
+deterministic-fallback output and `runs/seed42-tiered/` is the only place model
+output appears.
+
+**New P0, discovered in Phase 3:** rule on `HARDSHIP_CLAIMED`. The model
+suppresses only 58% of hardship contacts and is drawing a distinction the flag
+cannot express (OBS-002). Either score the category or write the decision down —
+a judge who reads `adjudicator.py` will ask, and "nobody decided" is the one
+answer that costs marks.
 
 ### P1 — turns solid into winning
 

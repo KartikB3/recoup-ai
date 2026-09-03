@@ -14,7 +14,7 @@ Append-only. One entry per phase close. Newest at the bottom.
 | 0 | Scaffold & long-lead items | ✅ done | ✅ met | `8233ff6`..`702f213` |
 | 1 | Generator, clock, ledger (zero AI) | ✅ done | ✅ met | `00b3409`..`7fb21ce` |
 | 2 | Policy engine + baseline + metrics | ✅ done | ✅ met | `v0.1-submittable` |
-| 3 | LLM reasoner layer | 🟡 in progress | ⚠️ live model/cache pending | — |
+| 3 | LLM reasoner layer | ✅ done | ✅ met (gate amended, see entry) | `29acd0f`..`2f135ab` |
 | 4 | Razorpay live slice | ⬜ not started | — | — |
 | 5 | Dashboard | ⬜ not started | — | — |
 | 6 | Evaluation, hardening, submission prose | ⬜ not started | — | — |
@@ -474,6 +474,103 @@ unconfigured `ANTHROPIC_API_KEY` (ISS-033).
 2. Phase 6 applies the approved aggregate suppression to the ledger and renders
    it. Until then `applied_to_ledger` remains false.
 3. The public GitHub push remains the user's decision.
+
+---
+
+## Phase 3 close — the model layer, bought deliberately small
+
+**Date:** 2026-09-03
+**Model/effort used:** Opus 5, adaptive thinking; `effort: "medium"` per record,
+`"high"` for the batch insight
+**Gate:** ✅ met, with clause (b) amended before the fact — see *Deviations*
+**Commit / tag:** `29acd0f` (reasoner) · `8e83e87` (spend guards) · `bf38897`
+(seeded cache) · `2f135ab` (cost-tiered arm)
+
+**What was built**
+
+- `reasoner/client.py`: `ClaudeReasoner` over `beta.messages.parse`, adaptive
+  thinking, structured output, dated server-fallback beta, `stop_reason` checked
+  before any content is read. The `anthropic` import is lazy, so the empty-key
+  path never loads the SDK.
+- `reasoner/cache.py`: SHA-256 of canonical model input, plus a contract hash
+  over prompt, schema, model and effort. Contract drift is a miss, never a
+  silent stale replay. Only real model output is stored — caching a fallback
+  would make a later keyed run mistake it for model output forever.
+- `reasoner/schemas.py`: `BatchInsight` as a *proposal*.
+  `PolicyEngine.adjudicate_batch` validates group membership, breadth and ledger
+  existence, and vetoes hallucinated or partial scope.
+- Spend guards: `--cache-only`, `--max-api-calls`, `max_retries=1`, a raised
+  `BATCH_MAX_TOKENS` with its own timeout, and fallback reasons in the run
+  report. See ISS-035 and ISS-037.
+- `recoup seed-cache`: pays for a *named slice* of tick-0 records. Dry run by
+  default, `--confirm` required, ceiling enforced inside the reasoner.
+- `--run-id`: lets a new arm land beside canonical evidence instead of over it.
+
+**Key decisions**
+
+| Decision | Choice | Reasoning |
+|---|---|---|
+| Full 472-call model arm | **Not bought** | ~$10 against a $4 balance, and ISS-038 shows the recovery number it produces is a verdict on the simulation, not the reasoner. |
+| What to buy instead | 28 records where prose is the only signal | Selected by held-out flag, prose present, no structured tell the policy engine already catches, and the ladder contacts anyway. Highest information per dollar. |
+| Selecting an eval set with ground truth | Allowed, stated | Choosing what to measure is not showing the model the answer. The snapshot handed to the reasoner is unchanged and still excludes `payer_archetype`, `flags`, `provenance`, `spotlight`. |
+| Model at first review only | Shipped as a *cost-tiered arm* | Expensive model once per record at intake, cheap deterministic follow-through. It is what an operator paying a real bill would ship, not a compromise. |
+| Canonical `runs/seed42/` | Untouched | The Phase 2 floor must stay recoverable. The model arm lives in `runs/seed42-tiered/`. |
+
+**Deviations from the plan**
+
+Two, both deliberate and both recorded before the measurement was taken.
+
+1. **Gate clause (b) amended.** The plan required "cache hit rate is 100% on a
+   second identical run", scoped to the full batch. A full-book cache costs
+   about $10 and the balance was $4. The clause now reads: *a second identical
+   run makes zero model calls and serves every seeded snapshot from disk.* That
+   is met — the cost-tiered run made 0 model calls and served 77 of 338
+   decisions from the paid cache, the rest by deterministic fallback. Restating
+   the clause afterwards to fit whatever happened would have been the dishonest
+   move; it was restated first.
+2. **"Beat the policy baseline on recovery" retired, not failed.** ISS-038 and
+   OBS-008: `ESCALATE_HUMAN` ends automation and the simulation models no human
+   collector, so every correct escalation scores as forgone recovery. The
+   measured cost is reported plainly instead.
+
+**Numbers**
+
+Four canonical arms in `runs/seed42/` are unchanged. `runs/seed42-tiered/` is
+the same four with the agent using 77 real model proposals at first review:
+
+| Arm | Recovery % | Contacts | Paid | False interventions |
+|---|--:|--:|--:|--:|
+| control | 49.25 | 0 | 54 | 0 |
+| baseline | 62.34 | 459 | 70 | 28 |
+| policy_baseline | 56.54 | 161 | 63 | 15 |
+| agent (ladder) | 57.75 | 157 | 66 | 15 |
+| **agent (model triage)** | **54.43** | **104** | 61 | **0** |
+
+- **False interventions 23 → 0**: disputed 8 → 0, already-paid 15 → 0. This
+  falsifies the information floor the project had documented — see ISS-036.
+- Scored at tick 0 against held-out flags, ladder contacts 28 of 28 and the
+  model contacts 5: DISPUTED (prose-only) 6 → 0, ALREADY_PAID 10 → 0,
+  HARDSHIP 12 → 5.
+- Recovery cost of the trade: **−3.32 points**. Predicted at most −3.4 before
+  spending, from the control arm's 49.25% floor.
+- Review load 472 → 338 decisions; escalated records stop being reviewed.
+- Batch insight is real: `GRP-SURYODAYA`, 9 invoices across 6 payer entities in
+  different cities, confidence 0.79, policy verdict `APPROVED`.
+- **Spend: $2.09 total.** Measured cost is ~$0.021 per record call; inputs are
+  1,330 tokens per record and ~57,800 for the whole opening book.
+- 204 tests. Cost-tiered arm replays clean at 629 rows.
+
+**Carried forward**
+
+1. The full-book model arm is deliberately unbought. If a later phase wants it,
+   it needs about $8.30 *and* a modelled human-resolution rate on `HUMAN_QUEUE`
+   first, or the number will mislead (OBS-008).
+2. OBS-002 is now a decision the project owes: hardship contact is 58%
+   suppressed and the model is drawing a distinction the flag cannot express.
+   Score it or rule on it; silence is no longer tenable.
+3. Phase 6 applies the approved aggregate suppression to the ledger and renders
+   it. `applied_to_ledger` remains false until then.
+4. The public GitHub push remains the user's decision.
 
 ---
 

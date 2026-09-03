@@ -512,7 +512,136 @@ canonical arm.
 **Design consequence:** Phase 3 remains in progress. A truthy key and explicit
 approval for the plan's estimated first-run spend are required before seeding
 and committing model cache entries.
-**Status:** OPEN — external credential/spend gate.
+**Status:** RESOLVED — a key was configured and a bounded, approved spend of
+roughly $2.09 seeded 77 real record proposals and one real batch insight. The
+cache is genuine model output; no synthetic entry was ever committed. The
+*full-book* model arm remains unbought by choice, not by blocker: see ISS-038
+and OBS-008 for why buying it would have produced a misleading number.
+
+---
+
+### ISS-034 · 🟠 The 50% Batch API discount is unreachable for a sequential agent
+
+**Phase:** 3
+**What happened:** Phase 3 was budgeted at $10-25 for a full 472-call agent run.
+The Message Batches API halves that, and the workload looks like a textbook fit:
+hundreds of independent, latency-insensitive structured calls.
+**Why it matters:** Halving the largest cost line in the project would have made
+a full model arm affordable inside a $4 prepaid balance.
+**What we tried:** Traced the data dependency. The snapshot handed to the
+reasoner carries `contacts_made`, `last_contact_tick`, `payment_links_sent` and
+`history`, all of which are written by decisions at earlier ticks. A tick-N
+snapshot therefore cannot be constructed until tick N-1 has been adjudicated.
+Batching per tick would mean 112 sequential batch submissions of roughly four
+requests each, and a batch job's latency is measured in minutes to hours.
+**Design consequence:** None to the architecture; the discount is simply not
+available to this shape of workload. The same constraint independently rules
+out pre-generating a whole model arm offline through any other channel. It is
+the reason the evaluation is a bounded seeded slice rather than a full arm.
+**Status:** ACCEPTED — inherent to a stateful sequential agent.
+
+---
+
+### ISS-035 · 🟠 A partially seeded cache plus a live credential is unbounded spend
+
+**Phase:** 3
+**What happened:** The reasoner's contract is lookup, then miss, then live call,
+then fallback on failure. That is correct in isolation and dangerous in
+aggregate: once a credential is present, an ordinary `recoup run --arm agent`
+bills for every record the cache has no entry for. During this phase a
+verification run was started against a freshly configured key without
+`--cache-only`, and it made roughly 50 unbudgeted calls before it was stopped.
+**Why it matters:** The demo depends on committing a *partial* cache, because a
+full one costs an order of magnitude more than the budget. So the hazardous
+state — some entries present, credential live — is the normal steady state,
+not an edge case. On a small prepaid balance one mistyped command is the whole
+balance.
+**What we tried:** Reviewed every guard already present. The circuit breaker
+(`DEFAULT_FAILURE_LIMIT = 3`) trips on *errors*, not on successful spend, so it
+gives no protection at all against the failure mode that actually costs money.
+No call ceiling existed anywhere in the codebase.
+**Design consequence:** Four guards in `reasoner/client.py`. `--cache-only`
+makes a miss take the deterministic fallback and never call, which is also the
+honest demo mode since a recorded walkthrough should not depend on a live
+network call. `--max-api-calls N` is a hard ceiling enforced inside the reasoner
+rather than in a caller's loop. `max_retries` now defaults to 1 instead of the
+SDK's 2, because one flaky call was billable three times. The run report names
+its fallback reasons, so `cache-only` and `call-budget-spent` are visible rather
+than silent. Seeding moved to a separate command, `recoup seed-cache`, which is
+a dry run by default and requires `--confirm` to spend.
+**Status:** RESOLVED — guards shipped and covered by five tests.
+
+---
+
+### ISS-036 · 🟠 A documented information floor turned out not to be fundamental
+
+**Phase:** 3
+**What happened:** `OBSERVATIONS.md` carried OBS-003, which measured that false
+interventions could not reach zero. Its argument: `ALREADY_PAID_UNRECONCILED`
+records show money outstanding in the ledger, so the snapshot carries no signal
+distinguishing them; the deterministic ladder suppressed only 20% of contacts
+against them, and that 20% was incidental to contacting less overall. The stated
+remedy was a reconciliation feed — a real product feature explicitly scoped
+out of the seven days.
+**Why it matters:** The observation was used to argue that "23 false
+interventions" was a ceiling rather than a failure, and it shaped what Phase 3
+was allowed to claim.
+**What we tried:** Seeded the 28 records where prose is the only signal and
+scored the model against the held-out flags. It suppressed 10 of 10 already-paid
+contacts and 6 of 6 prose-only disputes. In the full cost-tiered arm, scored
+false interventions go 23 to 0.
+**Design consequence:** The floor was real for a *snapshot-reading* proposer and
+false for a *prose-reading* one. The signal was in `payer_notes` and
+`email_replies` all along; no new data source was required. OBS-003 is deleted.
+This is the clearest evidence in the project that the model earns its place, and
+it is a harm result rather than a recovery result.
+**Status:** RESOLVED — observation falsified by measurement.
+
+---
+
+### ISS-037 · 🟡 `BATCH_MAX_TOKENS` was set below what the batch call needs
+
+**Phase:** 3
+**What happened:** The aggregate call reasons over the whole ~58k-token opening
+book at `effort: "high"`. Adaptive thinking bills against `max_tokens`, and the
+ceiling was 8192.
+**Why it matters:** Exceeding it returns `stop_reason: "max_tokens"`, which the
+wrapper correctly refuses to read, raising `IncompleteModelResponse` — a call
+paid for in full with nothing cached. At roughly $0.45 that is a fifth of the
+phase's entire budget lost to a constant.
+**What we tried:** Measured the real input. The 126 opening snapshots serialise
+to 208,000 bytes, about 57,800 tokens, against a 294-token system prompt.
+**Design consequence:** `BATCH_MAX_TOKENS` raised to 32768, and the batch call
+given its own 600-second timeout so a long high-effort response cannot race the
+60-second per-record timeout into a retry.
+**Status:** RESOLVED — corrected before any spend on that path.
+
+---
+
+### ISS-038 · 🟠 The recovery metric cannot score the model's main skill
+
+**Phase:** 3
+**What happened:** The model's dominant proposal on records with prose blockers
+is `ESCALATE_HUMAN` — 49 of the 77 seeded records, carrying Rs 1,01,38,277 of
+outstanding value, about 40% of the book. In the ledger `ESCALATE_HUMAN` sets
+`ends_automation=True` and `review_ticks=REVIEW_NEVER`, and moves the record to
+`HUMAN_QUEUE`.
+**Why it matters:** The simulation models no human collector, so nothing is ever
+recovered *because* it was escalated. Every correct escalation scores as forgone
+recovery. A full model arm would have reported a recovery number that
+understates the system by construction, and the plan's "beat the policy baseline
+on recovery" task would have been failed by a scoring artifact rather than by
+the model.
+**What we tried:** Bounded it arithmetically before spending. The control arm
+recovers 49.25% with zero contact, so the entire spread between chasing well and
+never chasing is 8.5 points; escalating 40.1% of book value can therefore cost
+at most about 3.4 points. The measured cost-tiered arm came in at 54.43% against
+57.75% — a 3.32-point cost, inside the predicted bound.
+**Design consequence:** The full-book model arm was not purchased. The
+comparison is reported as a harm result, not a recovery result, and the recovery
+cost is stated plainly rather than hidden. See OBS-008.
+**Status:** ACCEPTED — a modelling boundary of the simulation, recorded so that
+no later phase reads the recovery column as a verdict on the reasoner.
 
 ---
 
