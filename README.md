@@ -160,7 +160,10 @@ visible warning. No cap on retry attempts is claimed to be regulatory, because n
 verified source for one was found.
 
 Six contacts in the canonical run were vetoed under `rbi-contact-hours` for
-landing outside the 08:00–19:00 window, each with the circular on screen.
+landing outside the 08:00–19:00 window, each with the circular on screen. That
+circular governs lending recovery by regulated entities, so Recoup **adopts**
+the window as a standard rather than claiming to be legally bound by it — and
+that caveat travels with the citation into the UI, not just into this document.
 
 Full mapping: [`docs/POLICY-SOURCES.md`](docs/POLICY-SOURCES.md).
 
