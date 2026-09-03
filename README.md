@@ -4,11 +4,16 @@
 
 Razorpay Buildathon · Track 03: AI Revenue Recovery · solo build.
 
-> ⚠️ **Phase 3 implementation is complete; live cache seeding is pending an API
-> key.** `v0.1-submittable` remains the untouched deterministic floor. The
-> structured proposer, validated disk cache, model-failure circuit breaker and
-> policy-approved batch insight are wired, while an empty key still reproduces
-> the four-arm Phase 2 numbers exactly.
+> ⚠️ **Status.** Phases 0–3 are complete: the structured proposer, validated
+> disk cache, model-failure circuit breaker and policy-approved batch insight
+> are wired, the cache holds 77 real model proposals and one real batch
+> insight, and an empty `ANTHROPIC_API_KEY` still reproduces the four-arm
+> Phase 2 numbers exactly. `v0.1-submittable` remains the untouched
+> deterministic floor.
+>
+> **Phase 4's live slice is built and verified offline. The one round trip
+> through the real Razorpay API has not been run yet** — see *Closing the live
+> loop* below for exactly what is and is not proven, and how to finish it.
 
 ---
 
@@ -19,6 +24,8 @@ Stated up front, because it is a design decision and not an apology.
 > The batch runs against a deterministic simulation harness which is **the system of record**. A bounded subset of interventions executes as **real Razorpay test-mode Payment Links**, closing the loop through live webhooks. The scarcity of that budget is modelled as a real constraint the agent must allocate.
 
 **What is real:** Standard Payment Links API, server-side, test mode · callback URL with `razorpay_signature` verification · webhooks for payment events, reconciled back into the ledger.
+
+**Precisely how much of a live run is real:** only the payment links, and only the funded ones. A 112-tick run at `--live-budget 3` executes 52 payment links and 337 other actions, of which **3 rows carry `executor: LIVE`**. Reminders and phone follow-ups have no live counterpart in any mode — Recoup sends no email, no SMS and places no calls — so `LIVE` is a property of the individual action rather than of the run, and the audit log answers "which rows were real?" exactly. See [`docs/OBSERVATIONS.md`](docs/OBSERVATIONS.md) OBS-010.
 
 **What is simulated, and why:** everything else — because test mode closes the doors. Payment Links are capped at 30 per business; UPI Payment Links are unsupported in test mode; error-simulation cards require clicking through a mock bank page and cannot be driven headlessly; Recurring Payments S2S needs account activation; subscription retry is untestable (3-day token expiry, and halted subscriptions issue an invoice instead of charging).
 
@@ -129,6 +136,68 @@ are never cached as if they came from the model.
 
 ---
 
+## Closing the live loop
+
+The scarce-budget allocation, the live executor, the signature verification and
+the ledger reconciliation are built and tested. **The whole path runs against a
+fake client unless you pass `--confirm`**, so all of it can be rehearsed without
+spending a single one of the 30 test-mode Payment Links (ISS-001, still at 1 of
+30 consumed).
+
+```bash
+# Rehearse everything. Zero network, zero links, real code path.
+recoup run --seed 42 --arm agent --ticks 24 --cache-only \
+           --executor live --live-budget 3 --run-id live-rehearsal
+```
+
+That prints the links it would create, each labelled **payable** or **settled**:
+
+```
+live links: 3 created of a 3 budget, allocated across 22 records that requested one.
+  payable  ASH-2026-0011  tick 0   closed CONTACTED  plink_...  https://rzp.io/i/...
+  payable  ASH-2026-0035  tick 0   closed CONTACTED  plink_...  https://rzp.io/i/...
+  settled  ASH-2026-0051  tick 12  closed PAID       plink_...  https://rzp.io/i/...
+```
+
+**Use a short `--ticks`.** Over the full 112-tick horizon the simulated payer
+settles every funded record before a human could pay it, and a webhook for an
+already-`PAID` invoice is refused — correctly, because the rupees are already in
+the ledger. At 24 ticks two of the three funded links are still payable. This is
+[ISS-039](docs/ISSUES.md), and it is the reason the CLI labels them.
+
+To do it for real:
+
+```bash
+recoup webhook                                    # terminal 1
+cloudflared tunnel --url http://localhost:8000    # terminal 2, note the URL
+```
+
+Set `RAZORPAY_CALLBACK_BASE_URL` to that URL, add a webhook in the Razorpay
+dashboard for `payment_link.paid` pointing at `<tunnel>/razorpay/webhook`, and
+put the secret you choose there into `RAZORPAY_WEBHOOK_SECRET`. Then:
+
+```bash
+recoup run --seed 42 --arm agent --ticks 24 --cache-only \
+           --executor live --live-budget 3 --run-id live-demo --confirm
+```
+
+Open a **payable** link, pay it with any test card, and the receiver moves the
+record to `PAID`, appends the outcome row and marks the link settled. Verify:
+
+```bash
+recoup replay live-demo/agent      # the log must still reproduce the ledger
+```
+
+`recoup reconcile <payload.json>` applies a saved `payment_link.paid` delivery
+offline — for a webhook that arrived while the tunnel was down, or to rehearse
+the reconciliation without spending anything.
+
+The receiver refuses every delivery it cannot verify, refuses to write to
+`runs/seed42/` or `runs/seed42-tiered/` at all, and is idempotent: the Razorpay
+payment id is recorded in the outcome row, so a redelivery changes nothing.
+
+---
+
 ## Repository map
 
 | Path | What lives there |
@@ -138,7 +207,8 @@ are never cached as if they came from the model.
 | `src/recoup/ledger/` | Virtual clock, state machine, seeded outcome adjudication |
 | `src/recoup/policy/` | **The policy engine.** Rules, ordering, and their citations |
 | `src/recoup/reasoner/` | Structured Claude proposer, validated committed cache, aggregate insight, deterministic fallbacks |
-| `src/recoup/executor/` | Simulated and live-Razorpay execution, scarce-budget allocation |
+| `src/recoup/executor/` | Simulated and live-Razorpay execution, scarce-budget allocation, signature verification, payment reconciliation |
+| `webhook/` | FastAPI receiver: verified `payment_link.paid` → ledger |
 | `src/recoup/audit/` | Append-only log and its replay acceptance test |
 | `src/recoup/baseline/` | The naive chaser the agent is measured against |
 | `src/recoup/runner/` | The tick loop — the only orchestrator |

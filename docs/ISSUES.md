@@ -44,7 +44,7 @@ The cap stopped being a limitation and became a feature of the agent's decision 
 
 **Unknown:** whether the cap is lifetime or resets periodically. Not established either way, and it does not change the plan under either reading. If a reset is observed, log it here.
 
-**Consumed so far:** 1 of 30 — the Phase 0 smoke test (`plink_TXAFGZfOooV75R`, 2026-09-02). Keep this line current; it is the only running total.
+**Consumed so far:** 1 of 30 — the Phase 0 smoke test (`plink_TXAFGZfOooV75R`, 2026-09-02). Keep this line current; it is the only running total. **Phase 4 was built and verified without spending a second one:** `--executor live` runs the whole live path against `FakePaymentLinkClient` unless `--confirm` is passed, and the entire test suite is offline. The links for the real round-trip verification are still unspent.
 
 **Status:** ACCEPTED — the constraint stands, deliberately, and is designed around.
 
@@ -642,6 +642,165 @@ comparison is reported as a harm result, not a recovery result, and the recovery
 cost is stated plainly rather than hidden. See OBS-008.
 **Status:** ACCEPTED — a modelling boundary of the simulation, recorded so that
 no later phase reads the recovery column as a verdict on the reasoner.
+
+---
+
+## Phase 4 — the live Razorpay slice
+
+---
+
+### ISS-039 · 🟠 The simulated payer and the real payer both claim the same invoice
+
+**Phase:** 4
+**What happened:** The live round trip worked and then had nothing to land on.
+A live run creates a real payment link at tick T and the run carries on to its
+horizon, where the *simulated* adjudicator resolves the payer's behaviour. Over
+the full 112-tick horizon it settles **all three** funded records itself, so by
+the time a human pays the real link every one of them is `PAID` and the webhook
+is refused. Measured across horizons: at 16, 24 and 32 ticks two of the three
+funded records are still open; at 48 ticks one is; at 112 ticks none is.
+**Why it matters:** The Phase 4 gate is "webhook received, ledger moved to
+`PAID`". On the canonical horizon that gate is unreachable — not because the
+receiver is wrong, but because the simulation has already spent the outcome.
+**What we tried:** The tempting fix is to stop the adjudicator resolving records
+that hold a live link. It is wrong twice over: outcomes drive contact counts and
+therefore later decisions, so the live run would stop being the run the metric
+table describes; and choosing records the simulation will not settle is
+selecting on the answer key.
+**Design consequence:** Two, both small and both honest. The reconciler refuses
+a payment onto a terminal record and says why, rather than silently adding money
+to a written-off or already-paid invoice — the specific bug is that
+`Ledger.record_outcome` adds money *before* transitioning while
+`state_after_outcome` returns early on a terminal state, so an unguarded second
+payment raises recovered money on a record that stays `PAID`, and replay would
+stay green while the metric table counted the same rupees as both recovered and
+lost. And `recoup run --executor live` labels every link it created **payable**
+or **settled** against the closing state, and warns when none is payable, so the
+live verification is run at a horizon that closes the book while the funded
+receivables are still open. A 24-tick live run is not a weaker demo than a
+112-tick one; it is a book handed over mid-cycle, which is what a receivables
+book actually looks like.
+**Status:** ACCEPTED — a real consequence of a simulation and a live channel
+sharing one ledger, designed around and surfaced in the CLI.
+
+---
+
+### ISS-040 · 🟠 The obvious link allocator spends nothing at all
+
+**Phase:** 4
+**What happened:** ISS-001 requires the agent to allocate the 30-link test-mode
+budget rather than take the first 30. The obvious implementation — shortlist the
+largest receivables when the book opens — creates **zero** real links on the
+seed-42 book under the cost-tiered agent. The three largest invoices never
+request a payment link: `ASH-2026-0078` and `ASH-2026-0006` are escalated to a
+human at tick 0, one of them for a visible dispute, and `ASH-2026-0009` pays
+after a single reminder. The entire budget sits reserved for records that never
+spend it. Under the Phase 2 deterministic ladder one of the three requests a
+link, so the same shortlist still wastes two thirds of the budget.
+**Why it matters:** It fails silently and in the flattering direction. The run
+completes, the metric table is unchanged, the allocation report looks
+principled, and the number of real Razorpay objects is nought. Had the fake
+client not been asked to count `LIVE` rows, this would have been discovered on
+camera.
+**What we tried:** Oversubscribing the shortlist — top *K* for *K* larger than
+capacity, first come within it — does spend the budget, but it degrades to
+exactly "take the first 30" as the shortlist approaches the size of the book,
+which is the failure ISS-001 exists to name.
+**Design consequence:** Demand is **revealed, not predicted**. No decision
+anywhere reads the executor, and the simulation is deterministic, so a first
+pass with the simulated executor produces exactly the link requests the live
+pass will make, for free and with no API calls. The allocator ranks those and
+the live pass funds the largest. `run_live_batch` asserts the two passes agree
+on every audit row except `executor` and `external_ref`, so an allocation can
+never describe a run that did not happen. At `--live-budget 3` this fills 3 of 3
+units, on the three largest of the 30 records that requested a link
+(Rs 6,35,583 / Rs 5,44,133 / Rs 5,11,034), with 49 further links left simulated.
+
+The honest limit, stated rather than implied: this works because the world is a
+deterministic simulation that can be rehearsed. Against real payers demand would
+have to be estimated online — a threshold rule rather than a ranking. See
+OBS-009.
+**Status:** RESOLVED — allocation from revealed demand, with the failure pinned
+by `tests/test_executor.py::test_an_intake_shortlist_would_waste_the_budget` so
+that a later change to either proposer cannot quietly reintroduce it.
+
+---
+
+### ISS-041 · 🟠 `executor: LIVE` would have been a lie on most rows
+
+**Phase:** 4
+**What happened:** The runner stamped `ExecutorKind` onto every action from a
+class attribute on the executor. That is correct only while every executor is
+uniform, and the live one cannot be: `api_units` is 1 for `PAYMENT_LINK` and 0
+for `SOFT_REMINDER` and `PHONE_FOLLOWUP`, because Recoup sends no email, no SMS
+and places no calls in any mode. A live run would therefore have marked every
+reminder and every phone row `LIVE` while nothing left the process.
+**Why it matters:** The Phase 4 gate says a judge must be able to see exactly
+which rows were real. A 24-tick live run makes 57 contacts and 3 real objects;
+the old shape would have labelled all 57 real, in a graded artifact.
+**What we tried:** Nothing was tried and reverted, but the change was made
+first, in isolation, and proved byte-neutral before anything was built on it:
+all four arms regenerated into a scratch run id reproduce `runs/seed42-tiered/`
+exactly — audit rows, closing position, summary and both metrics files, modulo
+the run id itself and the hash chain it necessarily perturbs — and the three
+model-free arms equally reproduce `runs/seed42/`.
+**Design consequence:** `Executor.perform` returns an `ExecutionResult` carrying
+the kind alongside the reference, so `LIVE` means "a Razorpay object exists for
+this row" — a property of the action, not of the executor. Non-contact actions
+keep the `SIMULATED` default rather than inheriting a kind.
+**Status:** RESOLVED — the kind travels with the result.
+
+---
+
+### ISS-042 · 🟡 An allocation rule in the policy engine changed the run it was measuring
+
+**Phase:** 4
+**What happened:** The first design made link allocation a policy rule: a record
+outside the shortlist had its `PAYMENT_LINK` reduced to a `SOFT_REMINDER` by the
+`link-budget` rule. It works, and it quietly invalidates the comparison. A
+reminder where a link would have been changes the contact count, which changes
+payer-level spacing, which changes later decisions — so a live run is no longer
+the run `runs/seed42-tiered/metrics.md` describes, and its numbers cannot be
+placed beside the other arms.
+**Why it matters:** It also made the budget unknowable in advance. Because the
+downgrades altered the trajectory, the demand a dry run revealed was not the
+demand the live run would produce, and the two-pass equivalence that the
+allocator depends on could not hold.
+**Design consequence:** Reverted; `policy/rules/link_budget.py` is exactly as
+Phase 2 shipped it. The 30-link cap constrains **real Razorpay objects**, not
+the merchant's dunning policy — a payment processor's sandbox quota is not a
+reason to contact a payer differently. Allocation moved to the executor, where
+it decides which of the links the agent already decided to send are backed by a
+real object.
+**Status:** RESOLVED — the cap governs execution, not strategy.
+
+---
+
+### ISS-012 · RESOLVED in Phase 4
+
+The `razorpay` SDK's missing type stubs were carried from Phase 0 and named in
+the Phase 1 build-log entry as *the* Phase 4 risk, on the grounds that untyped
+responses make a signature-verification test against a known-good fixture
+non-optional. Discharged:
+
+- Both signature constructions were **read out of the installed SDK**
+  (`razorpay/utility/utility.py`) rather than written from memory. They differ
+  in ways that are not guessable: the webhook signs the raw request body under
+  the *webhook secret*, while the payment-link callback signs
+  `payment_link_id|payment_link_reference_id|payment_link_status|razorpay_payment_id`
+  under the *API key secret*.
+- `tests/test_webhook.py` carries a literal hex digest for a known secret and a
+  known body, computed from `hmac`/`hashlib` primitives with no project code in
+  the path. A test that called the SDK helper to check our helper would only
+  have asserted that the SDK agrees with itself.
+- A case asserts that reordering the callback's four signed fields breaks
+  verification, so the field order is genuinely under test, along with a
+  tampered body, a wrong secret, a missing signature, a missing secret and a
+  re-serialised body.
+- The one untyped response Recoup consumes is validated at the boundary
+  (`LiveRazorpayExecutor._read_link`): a payment link without a usable `plink_`
+  id is refused rather than recorded as a contact nobody can trace.
+
 
 ---
 

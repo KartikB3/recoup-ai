@@ -3,7 +3,7 @@
 **Track 03: AI Revenue Recovery · Razorpay Buildathon · Solo · ~7 days**
 Companion to `recoup-build-spec.md` (the *what*). This is the *how*.
 
-Status: **Phases 0-3 complete. Phase 4 is next.** The structured Claude
+Status: **Phases 0-3 complete. Phase 4 is built and verified offline; its one live verification awaits the user. Phase 5 is next.** The structured Claude
 proposer, contract-aware input cache, spend guards and policy-approved
 aggregate artifact are wired, and the cache holds **real** model output — 77
 record proposals and one batch insight, bought for $2.09. `runs/seed42-tiered/`
@@ -16,6 +16,18 @@ deliberately not bought: see ISS-038 and OBS-008 — the recovery column cannot
 reward correct escalation, so that number would be a verdict on the simulation
 rather than the reasoner. `v0.1-submittable` remains the untouched recoverable
 floor. The public push is still deferred to the user.
+
+**Phase 4** shipped the live slice: an `ExecutionResult` that makes `LIVE` mean
+"a Razorpay object exists for this row", a link allocator that funds the largest
+**revealed** link requests rather than the largest invoices (the obvious version
+creates zero real links — ISS-040), a live executor that refuses non-test keys
+and notifies nobody, and a signature-verified FastAPI receiver that reconciles a
+payment into the ledger as an ordinary append-only outcome row. The complete
+loop was exercised against a fake client — `CONTACTED → PAID`, Rs 5,44,133.40,
+replay clean over 394 rows — and **no test-mode link was spent doing it**
+(1 of 30 consumed, unchanged since Phase 0). The real round trip needs a tunnel
+and a browser, so it is the user's to run; ISS-039 explains why it must use a
+short horizon.
 Last updated: 2026-09-03
 
 ---

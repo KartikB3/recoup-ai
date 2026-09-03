@@ -5,19 +5,23 @@ Razorpay Buildathon, Track 03. Solo, ~7 days. Read `docs/IMPLEMENTATION-PLAN.md`
 ## Start here (cold session)
 
 **Phases 0–3 are complete and their gates are met.** The complete no-LLM floor
-is tagged **`v0.1-submittable`**. **Phase 4 is next.**
+is tagged **`v0.1-submittable`**. **Phase 4 is built and its offline half is
+verified; one live round trip remains, and it is the user's to run. Phase 5 is
+next.**
 
 Read in this order:
 
-1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, then Phase 4.
-2. `docs/BUILD-LOG.md` — the Phase 3 close entry, then Phase 2.
-3. `docs/ISSUES.md` — **ISS-034–038** are the Phase 3 record and the best raw
-   material in the file for the graded "Build Challenges" answer;
-   ISS-017, ISS-024, ISS-025, ISS-027 and ISS-028–031 constrain later phases;
-   ISS-012 and ISS-021 remain live obligations.
+1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, then Phase 5.
+2. `docs/BUILD-LOG.md` — the Phase 4 entry, then the Phase 3 close.
+3. `docs/ISSUES.md` — **ISS-039–042** are the Phase 4 record and **ISS-034–038**
+   the Phase 3 one; together they are the best raw material in the file for the
+   graded "Build Challenges" answer. ISS-017, ISS-024, ISS-025, ISS-027 and
+   ISS-028–031 constrain later phases; ISS-021 remains a live obligation
+   (ISS-012 was discharged in Phase 4).
 4. `docs/OBSERVATIONS.md` — **OBS-001 and OBS-008 govern what may be claimed
-   about the model**; OBS-002 is an open decision the project owes; OBS-005 is
-   the measured cost model.
+   about the model**, **OBS-009 and OBS-010 what may be claimed about the live
+   slice**; OBS-002 is an open decision the project owes; OBS-005 is the
+   measured cost model.
 5. This file, below, for the invariants.
 
 **Two run directories, and they mean different things.**
@@ -36,7 +40,8 @@ Read in this order:
 
 The cache under `data/llm_cache/` is **77 real record proposals and one real
 batch insight**, bought for $2.09. Every entry is genuine model output.
-**204 tests. No Anthropic import on the empty-key execution path.**
+**262 tests, all offline. No Anthropic import on the empty-key execution path,
+and no network on any test path.**
 
 Setup: `uv sync --extra dev`. Check: `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest`. Note `ruff format --check` — CI enforces it and the old check line here omitted it.
 
@@ -55,10 +60,19 @@ The balance is small and a partial cache plus a live key is unbounded spend
   invalidates every paid entry.
 - Never commit fake transport output as the demo cache.
 
+**Razorpay links are the other scarce resource.** Test mode caps them at 30 per
+business and **1 is consumed** (ISS-001 carries the running total — keep it
+current). `recoup run --executor live` is a rehearsal against
+`FakePaymentLinkClient` unless `--confirm` is passed, so develop and demo
+against the fake and spend only on the recorded round trip. A live run also
+requires an explicit `--run-id`, and the reconciler refuses to write to
+`runs/seed42/` or `runs/seed42-tiered/` whatever it is handed.
+
 Two seams are load-bearing:
 
 - **`PolicyGate`** is implemented by `PolicyEngine`. It receives the full record and ledger, logs every firing source, and can approve, reduce or veto. Do not move policy logic into the reasoner.
 - **`Proposer`** receives a **snapshot**, never an `Invoice`, so neither the model nor fallback can read `payer_archetype`, `flags`, `provenance` or `spotlight`. Both the Phase 2 fallback and the Phase 3 `ClaudeReasoner` satisfy it.
+- **`Executor`** returns an `ExecutionResult`, so **`LIVE` means a Razorpay object exists for that row** — a property of the action, not of the run. Never restore a per-executor kind: reminders and calls have no live counterpart and would be mislabelled (ISS-041). The scarce link budget is allocated in `executor/budget.py` from a dry run's **revealed** demand, and the `link-budget` policy rule is deliberately untouched from Phase 2 — the cap governs real objects, not dunning strategy (ISS-040, ISS-042).
 
 **Report four arms, not two.** `AlwaysWait` preserves the 49.3% do-nothing
 floor. Naive baseline versus the policy baseline isolates policy value; the
@@ -70,6 +84,13 @@ replacement for the deterministic agent column.
 **Invariant 7 remains load-bearing.** The shipped RBI and TRAI sources are verified and must not be weakened; RBI e-mandate claims remain unverified P1 work and must not enter the product unless the mandate lane ships and the issuing-body source is read.
 
 **Not done, deliberately:** the public GitHub push. It is the user's call. Nothing in Phases 2–6 depends on it; the submission does.
+
+**Not done, and it is the gate:** the one live Razorpay round trip. Everything
+it needs is built and rehearsed against a fake client; it needs a tunnel, a
+dashboard webhook and a browser click, so it is the user's to run. Until it has
+been run, **nothing may claim a real payment has been reconciled** — say "built
+and verified offline". The procedure is in the README under *Closing the live
+loop*.
 
 ## The rule that outranks everything
 

@@ -572,6 +572,124 @@ the same four with the agent using 77 real model proposals at first review:
    it. `applied_to_ledger` remains false until then.
 4. The public GitHub push remains the user's decision.
 
+## Phase 4 — Razorpay live slice
+
+**Date:** 2026-09-03
+**Model/effort used:** Opus 5, high
+**Gate:** ⚠️ **partially met — the offline half in full, the live half awaiting the user.**
+
+The gate reads: *one real test-mode Payment Link created by the agent, paid on
+the mock page, webhook received, ledger moved to `PAID`, audit row written.*
+Every component of that is built, wired and verified, and the complete loop has
+been run end to end with `FakePaymentLinkClient` substituted for the network and
+nothing else changed:
+
+| Gate condition | Status |
+|---|---|
+| Payment Link created **by the agent**, under an allocated budget | ✅ 3 of 3 units spent, on the three largest of the 30 records that requested a link |
+| Paid on the mock page | ⏳ needs a browser and a tunnel — the user's call |
+| Webhook received and **signature verified** | ✅ verified against a hand-computed fixture; tampered, wrong-secret, unsigned, missing-secret and re-serialised bodies all refused |
+| Ledger moved to `PAID` | ✅ `ASH-2026-0011` `CONTACTED` → `PAID`, Rs 5,44,133.40 |
+| Audit row written, and the run still replays | ✅ row 393 appended, chain verified, `recoup replay phase4-loop/agent` reproduces the ledger across 394 rows |
+
+**No test-mode links were spent building this.** The running total in ISS-001 is
+still 1 of 30. `--executor live` runs the entire live path against the fake
+client unless `--confirm` is passed, so the only links left to spend are the
+ones the real verification consumes.
+
+**What was built**
+
+- `executor/base.py` — `ExecutionResult`: the executor now reports **per action**
+  whether anything real happened, instead of the runner reading a class
+  attribute. `LIVE` means "a Razorpay object exists for this row" (ISS-041).
+- `executor/budget.py` — `LinkAllocator`, allocating the capped budget from
+  **revealed demand** rather than a guess at intake (ISS-040). One real link per
+  invoice, ranked by amount outstanding at the moment of request.
+- `executor/live_razorpay.py` — the real client and executor. Refuses non-test
+  keys before a client exists, notifies nobody, sends no `customer` block,
+  carries the ledger coordinates in `notes`, and degrades an API failure to a
+  simulated row rather than killing a run that has already created objects.
+- `executor/fake_razorpay.py` — the same response shape field for field,
+  deterministic ids, plus the `payment_link.paid` payload builder the webhook,
+  the reconciler and `recoup reconcile` all share.
+- `executor/session.py` — `live-links.json`: the durable index from a Razorpay
+  `plink_` id back to invoice, run and arm. The audit log records what the agent
+  decided; this is how a payment finds its way back to that row.
+- `executor/signature.py` — both verifications, read out of the installed SDK.
+- `executor/reconcile.py` — a real payment applied through `Ledger.record_outcome`
+  as an ordinary append-only outcome row.
+- `runner/batch.py` — `run_live_batch`, the two-pass live run, plus
+  `assert_same_decisions`, which proves on every invocation that the live pass
+  made the same decisions as the pass its allocation was planned from.
+- `audit/log.py` — `AuditLog.resume`, so a later event extends the hash chain
+  through the same code that wrote it.
+- `webhook/app.py` — FastAPI receiver: verified webhook, verified callback,
+  healthz. Deliberately thin; every rule lives under `src/` where mypy strict
+  and the tests reach.
+- `cli.py` — `--executor live` with `--confirm`, plus `recoup webhook` and
+  `recoup reconcile`.
+- `tests/test_executor.py`, `tests/test_webhook.py` — 52 new tests, all offline.
+
+**Key decisions**
+
+| Decision | Choice | Reasoning |
+|---|---|---|
+| What the 30-link cap constrains | **Real Razorpay objects, not the dunning policy** | Letting it downgrade links to reminders changes contact counts, hence spacing, hence later decisions — a live run would no longer be the run the metric table describes (ISS-042). |
+| How the budget is allocated | From a **free dry run's revealed demand** | An intake-time shortlist of the biggest invoices funds records that never request a link, and creates zero real links (ISS-040). |
+| Where allocation lives | The executor, not the policy engine | Once the cap governs execution rather than strategy, it is no longer a disposal decision. The `link-budget` rule is untouched from Phase 2. |
+| Live mode without `--confirm` | Runs the **real path against the fake client** | Not a stub: one object swapped at the boundary, so allocation, session index, audit rows and reconciliation are all exercised for nothing. |
+| Signature verification | Reimplemented, not delegated to the SDK | So it can be tested against a literal digest rather than against the same helper under test, and so the receiver holds no API credentials (ISS-012). |
+| A payment onto a terminal record | **Refused, loudly** | `record_outcome` adds money before transitioning, so it would raise recovered money on a written-off record while replay stayed green (ISS-039). |
+| Idempotency key | The payment id, in `OutcomeRecord.detail` | Derivable from the log alone. A new `ActionRecord` field would have changed the row schema and broken byte-comparison with every committed run. |
+| Which arm goes live | The agent arm only | The baselines bypass policy; making their links real would spend the budget on the arm the project is arguing against. |
+
+**Deviations from the plan**
+
+Two, both forced by measurement and both recorded as issues.
+
+1. The plan's task table says `executor/budget.py` should ensure "highest-expected-recovery
+   invoices get the real links" and warns to "make sure the code actually
+   implements allocation rather than taking the first 30". Implementing that
+   literally at intake produces zero links (ISS-040), so allocation ranks
+   revealed demand instead. The requirement is met; the mechanism is not the
+   obvious one.
+2. The gate assumes a link can be paid after the run. Over the canonical
+   112-tick horizon the simulated adjudicator settles every funded record first,
+   so the live verification needs a shorter horizon (ISS-039). The CLI now says
+   which links are payable.
+
+Also: `httpx` added to the dev extra, for `fastapi.testclient`.
+
+**Numbers**
+
+- 262 tests (was 204), all offline, 39s. ruff, `ruff format --check` and mypy
+  strict clean across 55 source files.
+- Rehearsal at `--live-budget 3`, 112 ticks: 3 of 3 units spent across 30
+  requesting records; 52 payment links total, so **3 real and 49 simulated**;
+  337 other actions untouched. The agent arm's 629 audit rows are identical to
+  `runs/seed42-tiered/agent` modulo `executor` and `external_ref`, and
+  `final.json` is byte-identical.
+- Funded links, 112-tick run: `ASH-2026-0051` Rs 6,35,583 · `ASH-2026-0011`
+  Rs 5,44,133 · `ASH-2026-0035` Rs 5,11,034.
+- Live-payable window (ISS-039): 2 of 3 funded records still open at 16, 24 and
+  32 ticks; 1 at 48; **0 at 112**.
+- Reconciliation: `ASH-2026-0011` `CONTACTED` → `PAID`, Rs 5,44,133.40, audit
+  row 393 of 394, replay clean, redelivery a no-op.
+- Test-mode links consumed this phase: **0**. Running total unchanged at 1 of 30.
+
+**Carried forward**
+
+1. **The real round trip is the user's to run** — it needs a tunnel, a dashboard
+   webhook and a browser click. The procedure is in the README; budget ~3 links.
+   Until it is done, Phase 4's gate is partially met and nothing may claim a
+   live payment has been reconciled.
+2. **ISS-039 constrains the video.** Record the live beat from a short-horizon
+   run, or the link on screen will belong to an already-settled invoice.
+3. OBS-009 records the allocator's honest limit: revealed demand works because
+   the world is a replayable simulation. Real payers would need an online
+   threshold rule.
+4. The public GitHub push remains the user's decision.
+
 ---
 
 ## Entry template — copy this for each phase

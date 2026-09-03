@@ -18,7 +18,7 @@ change is a design decision and belongs in `IMPLEMENTATION-PLAN.md` §0 instead.
 docs. An observation that stops being true gets deleted, not amended — and if
 it stopped being true because someone fixed it, that is an `ISSUES.md` entry.
 
-Last updated: 2026-09-03, at the Phase 3 close. Unless an entry says
+Last updated: 2026-09-03, at the Phase 4 close. Unless an entry says
 otherwise, figures are measured on the four canonical `runs/seed42/`
 artifacts, which use the no-key deterministic path. Figures for the
 cost-tiered arm come from `runs/seed42-tiered/`, where the agent uses 77
@@ -274,5 +274,70 @@ That is a simulation change, not a product change, and it is the single highest-
 value thing an evaluation phase could add. It must be introduced as a *declared
 assumption with a sensitivity range*, never as a silent constant, or it becomes a
 dial that manufactures the result.
+
+---
+
+## OBS-009 · The link allocator works because the world is replayable, not because it forecasts
+
+**Measured.** At `--live-budget 3` the allocator fills 3 of 3 units, on the
+three largest of the 30 records that requested a payment link
+(Rs 6,35,583 · Rs 5,44,133 · Rs 5,11,034). Perfect utilisation and a correct
+ranking — and both come from a property the production version would not have.
+
+**Why it matters.** Demand is *revealed*, not predicted: the arm is run once
+with the simulated executor to see which records ask for a link, and the live
+pass then funds the largest of those. That is exact here because the simulation
+is deterministic and no decision reads the executor, so the rehearsal is the
+same run. Against real payers there is no rehearsal. The general form is an
+online problem — a value threshold that spends a unit when a request is good
+enough, accepting that a better one may arrive later — and this build does not
+solve it. ISS-040 records why the obvious alternative (rank the biggest
+invoices at intake) is worse than doing nothing: on this book it funds zero
+links.
+
+Two further honest limits in the same area:
+
+- **There is no calibrated recovery probability.** Expected recovery is
+  `p × outstanding`, and with `p` taken as constant across requesting records
+  the ranking reduces to amount outstanding. That is what the code does and
+  what its docstring says. "Ranked by expected recovery" without that sentence
+  would imply a model that does not exist.
+- **One real link per invoice.** A defensible rule — a second link to one payer
+  is worth less than a first to another — but it is a judgement, not a result.
+
+**What would change it.** The ledger already records a confidence on every
+proposal and what actually happened, which is a calibration curve waiting to be
+fitted (ROADMAP §2.1). Fitting it turns `p` into a measured quantity and turns
+the threshold rule into something with a defensible cutoff. Neither is seven-day
+work, and neither is needed for the claim the submission actually makes, which
+is about allocating a capped resource rather than about forecasting.
+
+---
+
+## OBS-010 · A live run is mostly simulated, and the audit log is where that is visible
+
+**Measured.** A 112-tick live run at `--live-budget 3` executes 52 payment
+links and 337 other actions. Three rows carry `executor: LIVE`. Everything else
+— every reminder, every phone follow-up, and 49 of the 52 links — is
+`SIMULATED`.
+
+**Why it matters.** This is the shape of the Razorpay integration boundary the
+README promises, and the number is small on purpose: the cap is 30 for the
+whole account (ISS-001) and the demo needs the loop to close once, not at
+volume. The risk is not the ratio, it is describing it loosely. "The agent
+creates Razorpay payment links" is true; "the agent's contacts are real" is
+not, and the two are one careless sentence apart.
+
+The mechanism that keeps it honest is that `LIVE` is a property of the action
+rather than of the run (ISS-041), so the audit log answers the question exactly:
+three rows, three `plink_` references, each traceable to an object in the
+Razorpay dashboard. `runs/<id>/<arm>/link-allocation.json` states the same thing
+from the other side — what the budget was, who requested one, who got funded.
+
+**What would change it.** Nothing available. UPI links are unsupported in test
+mode (ISS-002), error-simulation cards are browser-bound (ISS-003), and Recoup
+sends no email, SMS or voice in any mode, so reminders have no live counterpart
+to acquire. A raised cap would change the ratio and not the boundary — and
+ISS-001 explains why the cap was deliberately not raised.
 
 ---

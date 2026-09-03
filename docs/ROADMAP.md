@@ -5,11 +5,21 @@ Two horizons, kept deliberately separate. Do not let the second one leak into th
 
 **Maintenance:** re-scope at the close of every phase. Move completed items out of §1, move slipped items down, and add anything newly discovered.
 
-Last updated: 2026-09-03 — **Phase 3 closed. Phase 4 is next.** The cache holds
-real model output: 77 record proposals and one batch insight, for $2.09. The
-cost-tiered arm in `runs/seed42-tiered/` cuts scored false interventions
-**23 → 0** for 3.32 recovery points. The four canonical `runs/seed42/` arms are
-untouched. The full-book model arm was deliberately not bought (ISS-038,
+Last updated: 2026-09-03 — **Phase 4 built; its offline half is verified and
+its live half awaits the user. Phase 5 is next.** The live slice is complete in
+code: the agent allocates a capped payment-link budget from revealed demand,
+creates real test-mode links, and a signature-verified webhook reconciles a
+payment into the ledger as an ordinary append-only outcome row. The whole loop
+has been run end to end against a fake client — `CONTACTED → PAID`, replay
+clean — **without spending a single test-mode link**. What remains is a browser,
+a tunnel and ~3 real links, which is the user's call (ISS-039 constrains the
+horizon that verification must use).
+
+The cache still holds 77 real record proposals and one batch insight, for
+$2.09. The cost-tiered arm in `runs/seed42-tiered/` cuts scored false
+interventions **23 → 0** for 3.32 recovery points, and still reproduces byte for
+byte after the Phase 4 executor change. The four canonical `runs/seed42/` arms
+are untouched. The full-book model arm was deliberately not bought (ISS-038,
 OBS-008). `v0.1-submittable` remains untouched. The public push remains
 deliberately deferred to the user.
 
@@ -29,6 +39,7 @@ deliberately deferred to the user.
 | 17 | Structured-output agent proposer over the same snapshot-only Protocol; the Phase 2 fallback already satisfies it | 3 | ✅ done — measured against held-out truth on 28 prose-only records |
 | 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ⬜ |
 | 19 | Create the public GitHub repository and push | user decision | ⬜ local history and tag are ready |
+| 21 | Run the live round trip once and screen-record it: 3 links, tunnel, mock-page payment, webhook, `PAID` | 4 | user decision | ⬜ everything it needs is built; procedure in the README. Use a short `--ticks` (ISS-039) |
 
 The four-arm comparison is now a standing contract. `AlwaysWait` preserves the
 49.3% floor. The naive baseline gets 62.3% with 459 contacts; the identical
@@ -62,7 +73,7 @@ Cut from here first if behind. Listed in **drop order** — drop the top one fir
 | 2 | Promise-to-pay tracking | 6 | Most human, most memorable feature on the list; showcases exactly what the LLM is for | ⬜ |
 | 3 | Kill switch — anomaly → self-halt → dashboard shows why | 6 | Your "one failure handled gracefully" | ⬜ |
 | 4 | Abstention below a confidence threshold | 6 | The agent declining to act is a stronger moment than the agent acting | ⬜ |
-| 5 | Live Razorpay Payment Link + webhook round-trip, on video | 4 | The only genuinely live thing in the build. Drop last. | ⬜ |
+| 5 | Live Razorpay Payment Link + webhook round-trip, on video | 4 | The only genuinely live thing in the build. Drop last. | 🟡 built and verified offline; the real round trip needs a tunnel, a browser and ~3 links — the user's call |
 
 ### P2 — only if genuinely ahead
 
@@ -87,6 +98,7 @@ Real money · real customers · real PII · anything where the LLM decides a num
 | 8 | Full four-arm metric table, losses and rule run-status notes included | `runs/seed42/metrics.{json,md}` |
 | 9 | Complete no-LLM floor | `v0.1-submittable` |
 | 13 | README boundary and metric table above the fold | Landed early at Phase 2 close |
+| 20 | Scarce-link allocation, live executor, verified webhook, ledger reconciliation | Phase 4; 262 offline tests, 0 test-mode links spent. ISS-039 to ISS-042; ISS-012 resolved |
 
 ---
 
