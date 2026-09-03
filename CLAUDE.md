@@ -20,7 +20,7 @@ Read in this order:
    (ISS-012 was discharged in Phase 4).
 4. `docs/OBSERVATIONS.md` — **OBS-001 and OBS-008 govern what may be claimed
    about the model**, **OBS-009 and OBS-010 what may be claimed about the live
-   slice**; OBS-002 is an open decision the project owes; OBS-005 is the
+   slice**; OBS-002 is an open decision owned by Phase 6 (ROADMAP P0 #22); OBS-005 is the
    measured cost model.
 5. This file, below, for the invariants.
 

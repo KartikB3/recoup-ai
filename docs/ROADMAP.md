@@ -38,6 +38,7 @@ deliberately deferred to the user.
 | 15 | Five-minute video | 7 | ⬜ |
 | 17 | Structured-output agent proposer over the same snapshot-only Protocol; the Phase 2 fallback already satisfies it | 3 | ✅ done — measured against held-out truth on 28 prose-only records |
 | 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ⬜ |
+| 22 | **Rule on `HARDSHIP_CLAIMED`** (OBS-002): either score it as a third false-intervention subtype or write down the decision that hardship contact is legitimate. | 6 | ⬜ assigned at the Phase 3 close |
 | 19 | Create the public GitHub repository and push | user decision | ⬜ local history and tag are ready |
 | 21 | Run the live round trip once and screen-record it: 3 links, tunnel, mock-page payment, webhook, `PAID` | 4 | user decision | ⬜ everything it needs is built; procedure in the README. Use a short `--ticks` (ISS-039) |
 
@@ -57,11 +58,14 @@ it as a harm result with its recovery cost stated, never as a recovery beat
 deterministic-fallback output and `runs/seed42-tiered/` is the only place model
 output appears.
 
-**New P0, discovered in Phase 3:** rule on `HARDSHIP_CLAIMED`. The model
-suppresses only 58% of hardship contacts and is drawing a distinction the flag
-cannot express (OBS-002). Either score the category or write the decision down —
-a judge who reads `adjudicator.py` will ask, and "nobody decided" is the one
-answer that costs marks.
+**Item 22 is the P0 discovered in Phase 3, and it is a decision rather than a
+build.** The model suppresses only 58% of hardship contacts and is drawing a
+distinction the flag cannot express (OBS-002) — hardship that needs breathing
+room versus hardship where the payer has named the mechanism they want. **Owned
+by Phase 6**, alongside item 18, because both are calibration decisions the
+evaluation phase has to defend in prose rather than code. A judge who reads
+`adjudicator.py` will ask, and "nobody decided" is the one answer that costs
+marks.
 
 ### P1 — turns solid into winning
 

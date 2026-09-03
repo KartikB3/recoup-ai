@@ -123,6 +123,8 @@ rather than missed. On `ASH-2026-0089` the model's stated ground is that *"the
 payer has explicitly asked for a card link, so sending one addresses the named
 obstacle rather than adding pressure."*
 
+**Owner: Phase 6, ROADMAP P0 item 22.** Assigned at the Phase 3 close so it cannot become the thing nobody did.
+
 That sharpens the open question instead of answering it. The model is drawing a
 distinction the flag cannot express — hardship that needs breathing room versus
 hardship where the payer has named the mechanism they want — and the project
