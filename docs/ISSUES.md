@@ -899,6 +899,34 @@ point now agree.
 
 ---
 
+### ISS-044 · 🟡 The engine's own terminal path had unit tests and no firing
+
+**Phase:** 6
+**What happened:** OBS-004 measured that both policy arms made **zero** `STOP`
+decisions and wrote off nothing on the canonical 112-tick horizon, while the
+naive baseline made 36 and wrote off 15. So `STOP` → `EXHAUSTED` → write-off was
+exercised end to end only by the arm that *bypasses* the policy engine.
+**Why it matters:** "Stopping rules" is named explicitly in the track's bar. The
+only arm demonstrating one was the arm the project argues against.
+**What we tried:** The fix OBS-004 itself named — a longer horizon. `recoup run
+--arm all --no-model --ticks 224 --run-id seed42-t224`, committed as a clearly
+labelled secondary artifact. Both policy arms now reach the terminal path:
+policy baseline 14 `STOP`s and 13 write-offs, agent 4 and 4. All four arms
+replay clean (2417 / 1158 / 1017 / 1056 rows).
+**Design consequence:** No code change; the path was correct and merely
+unreached. Two things came out of the run that the coverage fix did not
+anticipate. The agent stops **4 times against the policy baseline's 14** under
+the identical engine, which is a measurable statement about its reluctance to
+abandon a receivable. And the canonical arms' apparent recovery deficit turned
+out to be largely horizon truncation — see OBS-011. The canonical horizon stays
+112 ticks (a §0 locked decision); `seed42-t224` is a sensitivity artifact and is
+never the headline.
+**Status:** RESOLVED for the terminal path. The `high-value-escalation` guard is
+still unexercised for a different and now-understood reason; OBS-004 is rewritten
+to cover only that.
+
+---
+
 ## Entry template
 
 ```markdown

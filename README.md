@@ -130,6 +130,69 @@ recoup dashboard                          # offline; canonical seed42 + tiered f
 
 `recoup check-razorpay` creates one test-mode Payment Link to confirm credentials. It costs one unit of the 30-link budget.
 
+### Run it end to end
+
+Five commands, no credentials, no spend. Every number in this README comes out
+of them.
+
+```bash
+uv sync --extra dev
+
+# 1. The book: 126 seeded records, fixed SHA-256, same bytes on every machine
+uv run recoup generate --seed 42 --count 126
+
+# 2. The deterministic evidence frame -- four arms, ~2 min
+uv run recoup run --seed 42 --arm all --no-model
+
+# 3. The model arm, replayed from the committed cache
+uv run recoup run --seed 42 --arm all --cache-only --run-id seed42-tiered
+
+# 4. The claim that matters: reconstruct the ledger from the log alone
+uv run recoup replay seed42/agent
+uv run recoup replay seed42-tiered/agent
+
+# 5. Read the result
+uv run recoup metrics seed42
+uv run recoup dashboard
+```
+
+Step 4 is the one to watch. It rebuilds every record's final state from the
+append-only audit log and no other input, then compares against the ledger the
+run actually produced. `replay matches the ledger` is the audit trail being
+verified rather than asserted.
+
+Optional, and worth it -- the 56-day sensitivity run behind OBS-011 and the
+terminal-path evidence in ISS-044:
+
+```bash
+uv run recoup run --seed 42 --arm all --no-model --ticks 224 --run-id seed42-t224
+```
+
+**The canonical horizon is 112 ticks.** `seed42-t224` exists to show what the
+28-day window truncates; it is never the headline number.
+
+### Closing the live loop, in order
+
+This is the only part that spends anything -- about 3 of the 30 test-mode
+Payment Links (ISS-001). Drop `--confirm` and the entire path runs against the
+fake client for free, exercising allocation, the session index, audit rows and
+reconciliation without creating a single real object.
+
+```bash
+cloudflared tunnel --url http://localhost:8000   # then set RAZORPAY_CALLBACK_BASE_URL to it
+uv run recoup webhook                            # second terminal
+
+# rehearsal: real code path, fake client, zero links
+uv run recoup run --arm agent --executor live --live-budget 3 --ticks 16
+
+# the real thing
+uv run recoup run --arm agent --executor live --live-budget 3 --ticks 16 --confirm
+```
+
+Use the short `--ticks 16`. At 112 ticks all three funded invoices have already
+settled, so the link on screen would belong to a closed record (ISS-039). The
+run refuses to spend links nobody can pay.
+
 ### Which command reproduces which run
 
 `data/llm_cache/` holds **real committed model output** — 77 record proposals

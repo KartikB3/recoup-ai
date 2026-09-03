@@ -32,6 +32,7 @@ deliberately deferred to the user.
 | # | Item | Phase | State |
 |---|---|---|---|
 | 11 | Batch-level insight (§7b) — the cluster event. **Built in Phase 3; applied and rendered in Phase 6.** | 3 → 6 | 🟡 real model insight cached and policy-approved; Phase 6 application still pending |
+| 23 | Exercise the terminal path end to end (`STOP` → `EXHAUSTED` → write-off) so the bar's "stopping rules" is demonstrated, not just tested | 6 | ✅ done — `runs/seed42-t224/`, ISS-044, OBS-011 |
 | 14 | Seven submission-form answers drafted | 6 | ⬜ |
 | 15 | Five-minute video | 7 | ⬜ |
 | 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ⬜ |
