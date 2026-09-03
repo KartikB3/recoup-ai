@@ -41,11 +41,19 @@ SERVER_FALLBACK_BETA = "server-side-fallback-2026-07-01"
 RECORD_EFFORT = "medium"
 BATCH_EFFORT = "high"
 RECORD_MAX_TOKENS = 4096
-BATCH_MAX_TOKENS = 8192
+# Adaptive thinking bills against max_tokens, and the batch call reasons over
+# the whole ~58k-token opening book at high effort.  8192 truncated it into an
+# IncompleteModelResponse: the call is paid for and nothing is cached.
+BATCH_MAX_TOKENS = 32768
 DEFAULT_TIMEOUT_SECONDS = 60.0
+# The same call is non-streaming, so it must not race the record timeout.
+BATCH_TIMEOUT_SECONDS = 600.0
 DEFAULT_FAILURE_LIMIT = 3
+# The SDK default is 2, so one flaky call bills three times.  The circuit
+# breaker below is the intended failure control, not the retry budget.
+DEFAULT_MAX_RETRIES = 1
 
-ClientFactory = Callable[[str], Any]
+ClientFactory = Callable[..., Any]
 ParsedOutput = TypeVar("ParsedOutput", LLMProposal, BatchInsight)
 
 
@@ -67,11 +75,11 @@ class ReasonerStats:
         self.fallback_reasons[reason] = self.fallback_reasons.get(reason, 0) + 1
 
 
-def _anthropic_client(api_key: str) -> Any:
+def _anthropic_client(api_key: str, *, max_retries: int = DEFAULT_MAX_RETRIES) -> Any:
     """Import the SDK only on the live model path."""
     import anthropic
 
-    return anthropic.Anthropic(api_key=api_key)
+    return anthropic.Anthropic(api_key=api_key, max_retries=max_retries)
 
 
 class ClaudeReasoner:
@@ -88,17 +96,29 @@ class ClaudeReasoner:
         client: Any | None = None,
         client_factory: ClientFactory = _anthropic_client,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+        batch_timeout_seconds: float = BATCH_TIMEOUT_SECONDS,
         failure_limit: int = DEFAULT_FAILURE_LIMIT,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        cache_only: bool = False,
+        max_api_calls: int | None = None,
     ) -> None:
         if failure_limit < 1:
             raise ValueError("failure_limit must be positive")
+        if max_retries < 0:
+            raise ValueError("max_retries must not be negative")
+        if max_api_calls is not None and max_api_calls < 0:
+            raise ValueError("max_api_calls must not be negative")
         self.api_key = os.environ.get("ANTHROPIC_API_KEY", "") if api_key is None else api_key
         self.cache = ReasonerCache(cache_root)
         self.stats = ReasonerStats()
         self._client = client
         self._client_factory = client_factory
         self._timeout_seconds = timeout_seconds
+        self._batch_timeout_seconds = batch_timeout_seconds
         self._failure_limit = failure_limit
+        self._max_retries = max_retries
+        self._cache_only = cache_only
+        self._max_api_calls = max_api_calls
         self._consecutive_failures = 0
         self._circuit_open = False
         self._record_fallback = DeterministicFallback()
@@ -106,8 +126,19 @@ class ClaudeReasoner:
 
     @property
     def model_available(self) -> bool:
-        """A supplied test client or a truthy key permits the model path."""
-        return not self._circuit_open and (self._client is not None or bool(self.api_key))
+        """A supplied test client or a truthy key permits the model path.
+
+        ``cache_only`` and ``max_api_calls`` are spend guards: a partially
+        seeded cache would otherwise let one ordinary run bill for every
+        record it has no entry for.
+        """
+        if self._cache_only or self._circuit_open or self._call_budget_spent:
+            return False
+        return self._client is not None or bool(self.api_key)
+
+    @property
+    def _call_budget_spent(self) -> bool:
+        return self._max_api_calls is not None and self.stats.api_calls >= self._max_api_calls
 
     def propose(self, snapshot: dict[str, Any], tick: Tick) -> Proposal:
         """Return cached/model output, or the exact Phase 2 fallback proposal."""
@@ -132,6 +163,7 @@ class ClaudeReasoner:
                 max_tokens=RECORD_MAX_TOKENS,
                 system_prompt=RECORD_SYSTEM_PROMPT,
                 user_prompt=record_user_prompt(snapshot),
+                timeout=self._timeout_seconds,
             )
         except Exception as exc:
             self._record_api_failure(exc)
@@ -164,6 +196,7 @@ class ClaudeReasoner:
                 max_tokens=BATCH_MAX_TOKENS,
                 system_prompt=BATCH_SYSTEM_PROMPT,
                 user_prompt=batch_user_prompt(ordered),
+                timeout=self._batch_timeout_seconds,
             )
         except Exception as exc:
             self._record_api_failure(exc)
@@ -180,6 +213,7 @@ class ClaudeReasoner:
         max_tokens: int,
         system_prompt: str,
         user_prompt: str,
+        timeout: float,
     ) -> ParsedOutput:
         """Make one verified SDK call and inspect stop_reason before output."""
         client = self._get_client()
@@ -194,7 +228,7 @@ class ClaudeReasoner:
             output_format=output_type,
             fallbacks="default",
             betas=[SERVER_FALLBACK_BETA],
-            timeout=self._timeout_seconds,
+            timeout=timeout,
         )
         stop_reason = getattr(response, "stop_reason", None)
         if stop_reason != "end_turn":
@@ -209,7 +243,7 @@ class ClaudeReasoner:
 
     def _get_client(self) -> Any:
         if self._client is None:
-            self._client = self._client_factory(self.api_key)
+            self._client = self._client_factory(self.api_key, max_retries=self._max_retries)
         return self._client
 
     def _record_api_failure(self, exc: Exception) -> None:
@@ -220,7 +254,13 @@ class ClaudeReasoner:
             self._circuit_open = True
 
     def _unavailable_reason(self) -> str:
-        return "circuit-open" if self._circuit_open else "missing-api-key"
+        if self._cache_only:
+            return "cache-only"
+        if self._circuit_open:
+            return "circuit-open"
+        if self._call_budget_spent:
+            return "call-budget-spent"
+        return "missing-api-key"
 
     @staticmethod
     def _record_contract() -> dict[str, Any]:

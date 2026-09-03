@@ -87,6 +87,14 @@ def run(
     ticks: int = typer.Option(DEFAULT_TICKS, help="Virtual ticks to advance."),
     executor: ExecutorMode = typer.Option(ExecutorMode.simulated, help="Execution mode."),
     live_budget: int = typer.Option(30, help="Payment-link budget. Test mode caps at 30."),
+    cache_only: bool = typer.Option(
+        False,
+        "--cache-only",
+        help="Never call the API. Cache misses take the deterministic fallback.",
+    ),
+    max_api_calls: int | None = typer.Option(
+        None, help="Hard ceiling on model calls this run. Spend guard; unset means no ceiling."
+    ),
 ) -> None:
     """Run the batch end to end and write runs/<id>/. (Phases 2-3)
 
@@ -143,7 +151,11 @@ def run(
     run_id = f"seed{seed}" if ticks == DEFAULT_TICKS else f"seed{seed}-t{ticks}"
     run_dir = Path("runs") / run_id
     metric_inputs = {}
-    agent_reasoner = ClaudeReasoner() if DomainArm.AGENT in selected else None
+    agent_reasoner = (
+        ClaudeReasoner(cache_only=cache_only, max_api_calls=max_api_calls)
+        if DomainArm.AGENT in selected
+        else None
+    )
 
     for domain_arm in selected:
         proposer: Proposer
@@ -191,6 +203,10 @@ def run(
             f"model calls {agent_reasoner.stats.api_calls}, "
             f"fallbacks {agent_reasoner.stats.fallbacks}"
         )
+        reasons = agent_reasoner.stats.fallback_reasons
+        if reasons:
+            detail = ", ".join(f"{name} {count}" for name, count in sorted(reasons.items()))
+            typer.echo(f"reasoner fallback reasons: {detail}")
 
     report = compute_metrics(metric_inputs)
     _, markdown_path = write_reports(report, run_dir)

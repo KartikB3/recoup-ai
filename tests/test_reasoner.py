@@ -23,6 +23,9 @@ from recoup.reasoner.batch_insight import DeterministicBatchFallback
 from recoup.reasoner.cache import ReasonerCache, sha256_canonical
 from recoup.reasoner.client import (
     BATCH_EFFORT,
+    BATCH_MAX_TOKENS,
+    BATCH_TIMEOUT_SECONDS,
+    DEFAULT_MAX_RETRIES,
     MODEL,
     RECORD_EFFORT,
     SERVER_FALLBACK_BETA,
@@ -169,7 +172,7 @@ def test_batch_request_uses_high_effort(tmp_path: Path) -> None:
 
 
 def test_empty_key_never_constructs_client_or_caches_fallback(tmp_path: Path) -> None:
-    def forbidden_factory(api_key: str) -> Any:
+    def forbidden_factory(api_key: str, **_: object) -> Any:
         raise AssertionError(f"client constructed with {api_key!r}")
 
     reasoner = ClaudeReasoner(
@@ -373,3 +376,87 @@ assert result.batch_insight.policy_verdict.suppression_approved
         check=False,
     )
     assert completed.returncode == 0, completed.stderr
+
+
+def test_cache_only_never_calls_the_api_even_with_a_key(tmp_path: Path) -> None:
+    """The demo/replay mode: a configured key must not make the run spend."""
+    client = _FakeClient()
+    reasoner = ClaudeReasoner(
+        api_key="sk-ant-not-used",
+        cache_root=tmp_path,
+        client=client,
+        cache_only=True,
+    )
+    snapshot = _snapshots()[0]
+    reasoner.propose(snapshot, 0)
+    reasoner.analyze(_snapshots(), 0)
+    assert client.messages.calls == []
+    assert reasoner.stats.api_calls == 0
+    assert reasoner.stats.fallback_reasons == {"cache-only": 2}
+    assert reasoner.cache.stats.writes == 0
+
+
+def test_a_partially_seeded_cache_cannot_bill_for_the_uncached_rest(tmp_path: Path) -> None:
+    """The seeding hazard: N cached entries must not authorise 472-N live calls."""
+    snapshots = _snapshots()[:4]
+    seeding = ClaudeReasoner(cache_root=tmp_path, client=_FakeClient())
+    seeding.propose(snapshots[0], 0)
+    assert seeding.cache.stats.writes == 1
+
+    client = _FakeClient()
+    guarded = ClaudeReasoner(
+        api_key="sk-ant-not-used",
+        cache_root=tmp_path,
+        client=client,
+        cache_only=True,
+    )
+    for snapshot in snapshots:
+        guarded.propose(snapshot, 0)
+    assert guarded.cache.stats.hits == 1
+    assert client.messages.calls == []
+    assert guarded.stats.fallback_reasons == {"cache-only": 3}
+
+
+def test_max_api_calls_is_a_hard_ceiling_on_spend(tmp_path: Path) -> None:
+    client = _FakeClient()
+    reasoner = ClaudeReasoner(
+        api_key="sk-ant-not-used",
+        cache_root=tmp_path,
+        client=client,
+        max_api_calls=2,
+    )
+    for snapshot in _snapshots()[:5]:
+        reasoner.propose(snapshot, 0)
+    assert len(client.messages.calls) == 2
+    assert reasoner.stats.api_calls == 2
+    assert reasoner.stats.fallback_reasons == {"call-budget-spent": 3}
+
+
+def test_batch_call_gets_thinking_headroom_and_its_own_timeout(tmp_path: Path) -> None:
+    """High effort over the whole book must not truncate into a paid-for error."""
+    client = _FakeClient()
+    reasoner = ClaudeReasoner(api_key="sk-ant-not-used", cache_root=tmp_path, client=client)
+    reasoner.propose(_snapshots()[0], 0)
+    reasoner.analyze(_snapshots(), 0)
+    record_call, batch_call = client.messages.calls
+    assert batch_call["max_tokens"] == BATCH_MAX_TOKENS >= 32768
+    assert batch_call["max_tokens"] > record_call["max_tokens"]
+    assert batch_call["timeout"] == BATCH_TIMEOUT_SECONDS > record_call["timeout"]
+
+
+def test_default_client_caps_sdk_retries_below_the_sdk_default(tmp_path: Path) -> None:
+    """The SDK default of 2 bills three times for one flaky call."""
+    assert DEFAULT_MAX_RETRIES < 2
+    seen: dict[str, Any] = {}
+
+    def recording_factory(api_key: str, **kwargs: Any) -> Any:
+        seen.update(kwargs)
+        return _FakeClient()
+
+    reasoner = ClaudeReasoner(
+        api_key="sk-ant-not-used",
+        cache_root=tmp_path,
+        client_factory=recording_factory,
+    )
+    reasoner.propose(_snapshots()[0], 0)
+    assert seen == {"max_retries": DEFAULT_MAX_RETRIES}
