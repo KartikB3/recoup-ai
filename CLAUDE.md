@@ -4,28 +4,39 @@ Razorpay Buildathon, Track 03. Solo, ~7 days. Read `docs/IMPLEMENTATION-PLAN.md`
 
 ## Start here (cold session)
 
-**Phases 0–2 are complete and their gates are met.** The complete no-LLM floor is tagged **`v0.1-submittable`**. **Phase 3 is next:** structured reasoner output and the batch-level insight, built over the deterministic fallback path that already runs the full book.
+**Phases 0–2 are complete and their gates are met.** The complete no-LLM floor
+is tagged **`v0.1-submittable`**. **Phase 3 is in progress:** the structured
+reasoner, validated cache, failure circuit breaker and policy-approved batch
+artifact are implemented. The real model/cache/evaluation gate remains open
+because no Anthropic key is configured (ISS-033).
 
 Read in this order:
 
 1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, then Phase 3.
-2. `docs/BUILD-LOG.md` — the Phase 2 entry and post-tag audit-hardening entry.
-3. `docs/ISSUES.md` — **ISS-017, ISS-024, ISS-025, ISS-027 and ISS-028–031** carry the lessons that constrain later phases; ISS-012 and ISS-021 remain live obligations.
+2. `docs/BUILD-LOG.md` — the Phase 3 checkpoint, then the Phase 2 audit entry.
+3. `docs/ISSUES.md` — **ISS-032 and ISS-033** are the current Phase 3 state;
+   ISS-017, ISS-024, ISS-025, ISS-027 and ISS-028–031 constrain later phases;
+   ISS-012 and ISS-021 remain live obligations.
 4. `docs/OBSERVATIONS.md` — **OBS-001 and OBS-003 shape what Phase 3 is allowed to claim**; OBS-005 is its cost model.
 5. This file, below, for the invariants.
 
-**What Phase 3 starts from.** Everything from Phase 1–2, plus a post-tag
+**What the Phase 3 checkpoint preserves.** Everything from Phase 1–2, plus a post-tag
 four-arm comparison under `runs/seed42/`: control, naive baseline, the identical
 naive proposer with policy, and agent with policy. Policy alone moves 459 → 161
 contacts and 104 → 23 false interventions; with policy held constant, the agent
 adds 3 paid records and 1.2 value-recovery points. Eight
-`rbi-contact-hours` vetoes prove the adopted contact rule is live. All four logs
-replay with zero divergences. **183 tests. No Anthropic import anywhere on the
-deterministic execution path.**
+`rbi-contact-hours` vetoes prove the adopted contact rule is live. The new
+wrapper makes 473 cache lookups on the canonical no-key agent run, performs zero
+model calls, and falls back 473 times; all four logs still replay with zero
+divergences. **199 tests. No Anthropic
+import on the empty-key execution path.**
 
 Setup: `uv sync --extra dev`. Check: `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest`. Note `ruff format --check` — CI enforces it and the old check line here omitted it.
 
-**Phase 3 in one line:** replace the fixed per-record diagnosis with structured model output and a cache, preserve the existing deterministic fallback, and add the one aggregate insight a per-record path cannot produce.
+**To close Phase 3:** configure a key, explicitly approve the estimated first
+run spend, seed and commit real structured outputs, rerun for the real 100%
+cache gate, and compare model agent vs. policy baseline. Never commit fake
+transport output as the demo cache.
 
 Two seams are load-bearing:
 

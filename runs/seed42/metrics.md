@@ -39,11 +39,11 @@ A number means the policy engine ran. `bypassed` means that arm did not run poli
 | `nothing-outstanding` | Defensive guard; zero-balance records are terminal before review. | bypassed | bypassed | 0 | 0 |
 | `visible-dispute` | Active merchant guard for structured dispute state. | bypassed | bypassed | 16 | 16 |
 | `rbi-contact-hours` | Active adopted standard; the cited circular governs regulated-loan recovery. | bypassed | bypassed | 0 | 8 |
-| `trai-promotional-window` | Active for promotional drafts; Phase 2 drafts only service messages. | bypassed | bypassed | 0 | 0 |
-| `trai-message-category` | Active for drafted messages; Phase 2 drafts use the correct service category. | bypassed | bypassed | 0 | 0 |
+| `trai-promotional-window` | Active for promotional drafts; the canonical fallback drafts only service messages. | bypassed | bypassed | 0 | 0 |
+| `trai-message-category` | Active for every model draft; the canonical fallback uses the correct service category. | bypassed | bypassed | 0 | 0 |
 | `payer-contact-frequency` | Active merchant frequency cap. | bypassed | bypassed | 65 | 51 |
 | `payer-contact-spacing` | Active merchant minimum-spacing guard. | bypassed | bypassed | 182 | 172 |
-| `invoice-link-cap` | Active at an attempted fourth link; neither Phase 2 ladder attempts one. | bypassed | bypassed | 0 | 0 |
+| `invoice-link-cap` | Active at an attempted fourth link; neither deterministic ladder attempts one. | bypassed | bypassed | 0 | 0 |
 | `link-budget` | Disabled for simulation with link_budget=None; reserved for live execution. | bypassed | bypassed | 0 | 0 |
 | `high-value-escalation` | Active when STOP is proposed above Rs 5,00,000; no STOP means no opportunity. | bypassed | bypassed | 0 | 0 |
 

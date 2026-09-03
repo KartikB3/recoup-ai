@@ -47,7 +47,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from recoup.audit.log import AuditLog
 from recoup.domain.enums import (
@@ -78,6 +78,7 @@ from recoup.ledger.clock import (
     virtual_date,
 )
 from recoup.ledger.ledger import CONTACT_WINDOW_TICKS, Ledger, is_terminal
+from recoup.reasoner.schemas import BatchInsight, BatchInsightResult, BatchPolicyVerdict
 
 #: Ticks between a contact going out and the payer's response landing. Two
 #: ticks is twelve virtual hours: long enough that a reply is not instantaneous,
@@ -131,6 +132,29 @@ class PolicyGate(Protocol):
         ...
 
 
+class BatchReasoner(Protocol):
+    """Reads the complete book as snapshots and proposes one aggregate insight."""
+
+    name: str
+
+    def analyze(self, snapshots: list[dict[str, Any]], tick: Tick) -> BatchInsight:
+        """Propose a cross-record pattern without receiving an Invoice."""
+        ...
+
+
+class BatchPolicyGate(Protocol):
+    """The deterministic final authority over a batch recommendation."""
+
+    def adjudicate_batch(
+        self,
+        insight: BatchInsight,
+        tick: Tick,
+        ledger: Ledger,
+    ) -> BatchPolicyVerdict:
+        """Approve or veto the proposed suppression scope."""
+        ...
+
+
 @dataclass
 class RunResult:
     """Everything one arm's run produced. The metrics read this in Phase 2."""
@@ -146,6 +170,7 @@ class RunResult:
     vetoed: int = 0
     decisions: int = 0
     written_off: int = 0
+    batch_insight: BatchInsightResult | None = None
 
     @property
     def records(self) -> list[Invoice]:
@@ -199,6 +224,7 @@ def run_batch(
     horizon: int = DEFAULT_HORIZON,
     policy: PolicyGate | None = None,
     executor: Executor | None = None,
+    batch_reasoner: BatchReasoner | None = None,
 ) -> RunResult:
     """Run one arm over one batch. The only tick loop in the project.
 
@@ -228,15 +254,31 @@ def run_batch(
         horizon=horizon,
     )
 
+    opening_date = virtual_date(0)
+    opening_snapshots = [record.to_snapshot(opening_date, 0) for record in ledger.records]
+
+    # The aggregate path is still orchestrated here. It sees snapshots only,
+    # and its recommendation is inert until the same policy engine validates
+    # the complete group against the ledger.
+    if batch_reasoner is not None:
+        if policy is None or not hasattr(policy, "adjudicate_batch"):
+            raise ValueError("a batch reasoner requires a batch-capable policy gate")
+        insight = batch_reasoner.analyze(opening_snapshots, 0)
+        batch_gate = cast(BatchPolicyGate, policy)
+        batch_verdict = batch_gate.adjudicate_batch(insight, 0, ledger)
+        result.batch_insight = BatchInsightResult(
+            proposal=insight,
+            policy_verdict=batch_verdict,
+        )
+
     # Intake. One row per record, carrying the opening snapshot, so that a
     # reader of the log alone can see what the run started from.
-    opening_date = virtual_date(0)
-    for record in ledger.records:
+    for record, snapshot in zip(ledger.records, opening_snapshots, strict=True):
         log.append(
             kind=RowKind.INTAKE,
             tick=0,
             record_id=record.invoice_id,
-            input_snapshot=record.to_snapshot(opening_date, 0),
+            input_snapshot=snapshot,
         )
 
     pending: list[_Pending] = []
@@ -479,6 +521,12 @@ def write_run(result: RunResult, batch: Batch, out_dir: Path) -> Path:
     (out_dir / "summary.json").write_text(
         canonical_json(summarise(result)), encoding="utf-8", newline=""
     )
+    if result.batch_insight is not None:
+        (out_dir / "batch-insight.json").write_text(
+            canonical_json(result.batch_insight.model_dump(mode="json")) + "\n",
+            encoding="utf-8",
+            newline="",
+        )
     return out_dir
 
 
@@ -492,7 +540,7 @@ def summarise(result: RunResult) -> dict[str, Any]:
     for record in result.ledger.records:
         states[str(record.state)] = states.get(str(record.state), 0) + 1
     paid = sum(1 for r in result.ledger.records if r.state is RecordState.PAID)
-    return {
+    summary: dict[str, Any] = {
         "run_id": result.run_id,
         "arm": str(result.arm),
         "proposer_records": len(result.ledger.records),
@@ -507,3 +555,13 @@ def summarise(result: RunResult) -> dict[str, Any]:
         "audit_rows": len(result.log),
         "states": dict(sorted(states.items())),
     }
+    if result.batch_insight is not None:
+        summary["batch_insight"] = {
+            "pattern_found": result.batch_insight.proposal.pattern_found,
+            "parent_group_id": result.batch_insight.proposal.parent_group_id,
+            "invoice_count": len(result.batch_insight.proposal.invoice_ids),
+            "policy_verdict": str(result.batch_insight.policy_verdict.verdict),
+            "suppression_approved": result.batch_insight.policy_verdict.suppression_approved,
+            "applied_to_ledger": result.batch_insight.applied_to_ledger,
+        }
+    return summary

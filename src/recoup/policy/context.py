@@ -100,6 +100,12 @@ class MerchantPolicy:
     rather than a strategy.
     """
 
+    min_batch_group_invoices: int = 3
+    """Minimum open invoices before one parent-level escalation is credible."""
+
+    min_batch_group_payers: int = 3
+    """Minimum distinct payers required for an account-level pattern."""
+
 
 @dataclass(frozen=True)
 class RuleContext:

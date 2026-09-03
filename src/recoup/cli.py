@@ -88,11 +88,14 @@ def run(
     executor: ExecutorMode = typer.Option(ExecutorMode.simulated, help="Execution mode."),
     live_budget: int = typer.Option(30, help="Payment-link budget. Test mode caps at 30."),
 ) -> None:
-    """Run the batch end to end and write runs/<id>/. (Phase 2)
+    """Run the batch end to end and write runs/<id>/. (Phases 2-3)
 
-    This command is the Phase 2 gate: `recoup run --seed 42 --arm both` must
-    produce a full metric table with no LLM involved.
+    A cached structured reasoner drives the agent when a key is configured;
+    missing/empty credentials and any model failure preserve the exact
+    deterministic Phase 2 fallback.
     """
+    from dotenv import load_dotenv
+
     from recoup.baseline.naive_chaser import NaiveChaser, PolicyNaiveChaser
     from recoup.domain.enums import Arm as DomainArm
     from recoup.generator.generate import generate_batch
@@ -100,7 +103,7 @@ def run(
     from recoup.metrics.report import write_reports
     from recoup.policy.context import MerchantPolicy
     from recoup.policy.engine import PolicyEngine
-    from recoup.reasoner.fallback import DeterministicFallback
+    from recoup.reasoner.client import ClaudeReasoner
     from recoup.runner.batch import AlwaysWait, PolicyGate, Proposer, run_batch, write_run
 
     if executor is ExecutorMode.live:
@@ -132,16 +135,24 @@ def run(
             DomainArm.AGENT,
         )
 
+    # An explicitly empty process variable is not overridden by .env. That is
+    # the stricter CI gate and prevents SDK credential fall-through.
+    load_dotenv(dotenv_path=Path(".env"), override=False)
+
     batch = generate_batch(seed)
     run_id = f"seed{seed}" if ticks == DEFAULT_TICKS else f"seed{seed}-t{ticks}"
     run_dir = Path("runs") / run_id
     metric_inputs = {}
+    agent_reasoner = ClaudeReasoner() if DomainArm.AGENT in selected else None
 
     for domain_arm in selected:
         proposer: Proposer
         policy: PolicyGate | None
+        batch_reasoner = None
         if domain_arm is DomainArm.AGENT:
-            proposer = DeterministicFallback()
+            assert agent_reasoner is not None
+            proposer = agent_reasoner
+            batch_reasoner = agent_reasoner
             # A fresh engine owns per-run link-budget state. The simulated
             # comparison leaves the Phase 4 live budget disabled.
             policy = PolicyEngine(MerchantPolicy(link_budget=None))
@@ -162,6 +173,7 @@ def run(
             run_id=run_id,
             horizon=ticks,
             policy=policy,
+            batch_reasoner=batch_reasoner,
         )
         arm_dir = run_dir / domain_arm.value.lower()
         write_run(result, batch, arm_dir)
@@ -169,6 +181,15 @@ def run(
         typer.echo(
             f"{domain_arm.value.lower()}: recovered {result.recovered_paise} paise, "
             f"contacts {result.contacts}, vetoes {result.vetoed}"
+        )
+
+    if agent_reasoner is not None:
+        cache = agent_reasoner.cache.stats
+        typer.echo(
+            "reasoner: "
+            f"cache {cache.hits}/{cache.lookups} ({cache.hit_rate:.1%}), "
+            f"model calls {agent_reasoner.stats.api_calls}, "
+            f"fallbacks {agent_reasoner.stats.fallbacks}"
         )
 
     report = compute_metrics(metric_inputs)

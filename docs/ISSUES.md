@@ -470,6 +470,52 @@ SHA-256 `c903d91724d1c4566cb5c0a67ecf308eb6a0636772fe4a744a6b3f423188dd6f`.
 
 ---
 
+### ISS-032 · 🟠 The current `messages.parse()` helper splits schema and effort across two parameters
+
+**Phase:** 3
+**What happened:** The repository plan used the API-wire description
+`output_config.format` as shorthand for structured output. The required
+`claude-api` skill was not installed in this environment, so implementing that
+shorthand from memory risked an SDK-level `TypeError`. Official Anthropic docs
+and the installed 1.3.0 signature show the precise Python helper contract:
+the Pydantic type goes through `output_format=LLMProposal`, while
+`output_config={"effort": "medium"}` remains a separate argument. Server-side
+fallback also requires `client.beta.messages.parse`, `fallbacks="default"` and
+the dated beta header.
+**Why it matters:** This path can appear type-correct behind `Any`, stay dormant
+under the no-key gate, and then fail only after a paid model run begins.
+**What we tried:** Searched only Anthropic's current platform docs and official
+Python SDK repository, then inspected the installed method signature and helper
+source locally. No request was sent.
+**Design consequence:** Pinned `anthropic>=1.3`; the request-shape test asserts
+the exact split, prompt-cache marker, adaptive thinking, stop-reason handling
+and server fallback fields.
+**Status:** RESOLVED.
+
+---
+
+### ISS-033 · 🟠 No Anthropic credential is configured, so the real model cache cannot be seeded
+
+**Phase:** 3
+**What happened:** `ANTHROPIC_API_KEY` is false in the local `.env` and no
+process credential is present. The live Phase 3 path therefore cannot be run,
+and `data/llm_cache/` correctly contains documentation but no model outputs.
+**Why it matters:** The no-key fallback gate is green and a full-book fake
+transport proves a second identical run is 100% cached, but neither is evidence
+that Claude's proposals beat the policy baseline or that the real SDK/API
+round-trip accepts the request. Committing fake outputs would make the offline
+demo look complete while invalidating the project's central evidence claim.
+**What we tried:** Checked only the boolean presence of the local value without
+printing any secret. Exercised 126 record snapshots plus the batch call through
+a fake client, then replayed the resulting ledger and ran the complete no-key
+canonical arm.
+**Design consequence:** Phase 3 remains in progress. A truthy key and explicit
+approval for the plan's estimated first-run spend are required before seeding
+and committing model cache entries.
+**Status:** OPEN — external credential/spend gate.
+
+---
+
 ## Entry template
 
 ```markdown

@@ -18,8 +18,9 @@ change is a design decision and belongs in `IMPLEMENTATION-PLAN.md` §0 instead.
 docs. An observation that stops being true gets deleted, not amended — and if
 it stopped being true because someone fixed it, that is an `ISSUES.md` entry.
 
-Last updated: 2026-09-03, after the Phase 2 audit hardening commit (`5249035`).
-All figures are measured on the four canonical `runs/seed42/` artifacts.
+Last updated: 2026-09-03, at the Phase 3 implementation checkpoint. Unless an
+entry says otherwise, figures are measured on the four canonical
+`runs/seed42/` artifacts using the no-key deterministic path.
 
 ---
 
@@ -51,6 +52,11 @@ argument for why they, not recovery percentage, are the Phase 3 headline.
 **What would change it.** A Phase 3 arm that beats 57.8% at ≤157 contacts, or —
 more likely and more interesting — one that holds recovery flat while cutting
 the residual harm categories below.
+
+**Phase 3 checkpoint.** The structured proposer is now wired, but no Anthropic
+key is configured and the canonical agent still uses the exact deterministic
+per-record fallback. These numbers therefore remain the bar for the model, not
+model performance, and must not be relabelled as an LLM result.
 
 ---
 
@@ -181,6 +187,13 @@ the planning consequence is worth stating plainly. The snapshot contains `tick`,
 every record**. The disk cache is therefore a *cross-run* accelerator and the
 offline-demo mechanism — it is not an in-run one, and it cannot be. The first
 full run pays full price, and so does any run whose snapshots shift.
+
+**Phase 3 checkpoint.** The wrapper now performs 473 lookups on the canonical
+agent run: 472 record decisions plus one aggregate call. With no key and no real
+cache entries it reports 0 hits, 0 model calls and 473 fallbacks. A full-book
+fake-transport test proves 100% hits and zero client calls on a second identical
+run, but that is implementation evidence, not a seeded demo cache. ISS-033 keeps
+the real cache/evaluation gate open.
 
 **Why it matters.** Do not budget Phase 3 as though caching amortises within a
 run. Assume full price per full run, and expect to want several — a schema

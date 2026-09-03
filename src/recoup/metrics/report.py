@@ -34,15 +34,15 @@ RULE_RUN_NOTES: dict[str, str] = {
         "Active adopted standard; the cited circular governs regulated-loan recovery."
     ),
     "trai-promotional-window": (
-        "Active for promotional drafts; Phase 2 drafts only service messages."
+        "Active for promotional drafts; the canonical fallback drafts only service messages."
     ),
     "trai-message-category": (
-        "Active for drafted messages; Phase 2 drafts use the correct service category."
+        "Active for every model draft; the canonical fallback uses the correct service category."
     ),
     "payer-contact-frequency": "Active merchant frequency cap.",
     "payer-contact-spacing": "Active merchant minimum-spacing guard.",
     "invoice-link-cap": (
-        "Active at an attempted fourth link; neither Phase 2 ladder attempts one."
+        "Active at an attempted fourth link; neither deterministic ladder attempts one."
     ),
     "link-budget": ("Disabled for simulation with link_budget=None; reserved for live execution."),
     "high-value-escalation": (

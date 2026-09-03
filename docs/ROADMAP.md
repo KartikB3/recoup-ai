@@ -5,12 +5,13 @@ Two horizons, kept deliberately separate. Do not let the second one leak into th
 
 **Maintenance:** re-scope at the close of every phase. Move completed items out of §1, move slipped items down, and add anything newly discovered.
 
-Last updated: 2026-09-03 — **Phase 2 audit hardening complete; clear for
-Phase 3.** The ten-rule engine runs across control, naive baseline, naive +
-policy, and agent + policy; all four logs replay with zero divergences. The
-metric report distinguishes bypassed, disabled, defensive and dormant rules,
-and 183 tests are green. `v0.1-submittable` remains the recoverable pre-audit
-floor. The public push remains deliberately deferred to the user.
+Last updated: 2026-09-03 — **Phase 3 implementation checkpoint.** Structured
+record output, validated disk caching, deterministic failure paths and the
+policy-approved aggregate artifact are built. The no-key four-arm run and all
+replays remain green. A real Anthropic run, committed model cache and measured
+model comparison remain pending because no key is configured (ISS-033).
+`v0.1-submittable` remains untouched. The public push remains deliberately
+deferred to the user.
 
 ---
 
@@ -20,12 +21,12 @@ floor. The public push remains deliberately deferred to the user.
 
 | # | Item | Phase | State |
 |---|---|---|---|
-| 10 | Structured-output reasoner + input-hash cache; preserve the deterministic fallback that landed in Phase 2 | 3 | ⬜ |
-| 11 | Batch-level insight (§7b) — the cluster event. **Built in Phase 3; wired to the dashboard in Phase 6.** | 3 → 6 | ⬜ |
+| 10 | Structured-output reasoner + input-hash cache; preserve the deterministic fallback that landed in Phase 2 | 3 | 🟡 code + fake-transport cache gate green; real cache pending key |
+| 11 | Batch-level insight (§7b) — the cluster event. **Built in Phase 3; applied and rendered in Phase 6.** | 3 → 6 | 🟡 fallback artifact + policy approval built; live model call and Phase 6 application pending |
 | 12 | Dashboard: batch summary, invoice timeline, raw audit, and rule sources/caveats | 5 | ⬜ |
 | 14 | Seven submission-form answers drafted | 6 | ⬜ |
 | 15 | Five-minute video | 7 | ⬜ |
-| 17 | Structured-output agent proposer over the same snapshot-only Protocol; the Phase 2 fallback already satisfies it | 3 | ⬜ |
+| 17 | Structured-output agent proposer over the same snapshot-only Protocol; the Phase 2 fallback already satisfies it | 3 | 🟡 wired and tested; model evaluation pending key |
 | 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ⬜ |
 | 19 | Create the public GitHub repository and push | user decision | ⬜ local history and tag are ready |
 

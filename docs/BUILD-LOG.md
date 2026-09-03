@@ -14,7 +14,7 @@ Append-only. One entry per phase close. Newest at the bottom.
 | 0 | Scaffold & long-lead items | ✅ done | ✅ met | `8233ff6`..`702f213` |
 | 1 | Generator, clock, ledger (zero AI) | ✅ done | ✅ met | `00b3409`..`7fb21ce` |
 | 2 | Policy engine + baseline + metrics | ✅ done | ✅ met | `v0.1-submittable` |
-| 3 | LLM reasoner layer | ⬜ not started | — | — |
+| 3 | LLM reasoner layer | 🟡 in progress | ⚠️ live model/cache pending | — |
 | 4 | Razorpay live slice | ⬜ not started | — | — |
 | 5 | Dashboard | ⬜ not started | — | — |
 | 6 | Evaluation, hardening, submission prose | ⬜ not started | — | — |
@@ -393,6 +393,87 @@ left at the original recoverable floor.
 3. The two TRAI rules become meaningful guards once the Phase 3 model drafts
    and classifies messages. Zeroes should remain zero unless the model errs.
 4. The public GitHub push remains the user’s decision.
+
+---
+
+## Phase 3 checkpoint — structured reasoner implementation
+
+**Date:** 2026-09-03
+**Model/effort used:** Codex; product calls configured for Claude Opus 5 at
+`medium` per record and `high` for the aggregate insight
+**Gate:** ⚠️ **partially met** — the complete no-key run, replay gate, static
+checks and full-book cache behavior are green. A real Anthropic call, committed
+model-output cache and model-vs-policy-baseline comparison remain blocked by an
+unconfigured `ANTHROPIC_API_KEY` (ISS-033).
+**Commit / tag:** working tree checkpoint; `v0.1-submittable` remains untouched.
+
+**What was built**
+
+- `reasoner/client.py` — Claude Opus 5 structured proposer with adaptive
+  thinking, exact effort settings, prompt caching, server-side refusal fallback,
+  stop-reason validation, a three-failure circuit breaker and lazy SDK import.
+- `reasoner/cache.py` — disk cache under committed `data/llm_cache/`, with
+  canonical-input SHA-256 filenames and a separate contract hash over prompt,
+  schema, model and effort. Only successful model output is cached.
+- `reasoner/prompts.py` + `schemas.py` — frozen system prefixes, the closed
+  intervention space, no-money/no-date constraints, the Phase 1 `LLMProposal`
+  contract, and a validated aggregate insight/verdict contract.
+- `reasoner/batch_insight.py` — deterministic offline aggregate fallback over
+  the same snapshot-only boundary.
+- `PolicyEngine.adjudicate_batch` — independently validates that a suppression
+  recommendation covers the complete open parent group, contains only live
+  ledger IDs and spans the configured invoice/payer breadth.
+- `runner/batch.py` + CLI — the runner remains the only orchestrator; agent runs
+  use cached/model/fallback reasoning and persist `batch-insight.json` beside
+  the replayable log.
+- `tests/test_reasoner.py` — 16 focused tests, including exact SDK request shape,
+  refusal-before-content handling, cache invalidation, circuit breaking,
+  hallucinated aggregate IDs, no-SDK empty-key execution and a full-book fake
+  transport whose second identical run is 100% cached.
+
+**Key decisions**
+
+| Decision | Choice | Reasoning |
+|---|---|---|
+| Python SDK shape | `beta.messages.parse(output_format=PydanticType, output_config={"effort": ...})` | This is the installed Anthropic 1.3 contract. Passing the Pydantic type as `output_config.format` is not the helper API (ISS-032). |
+| Cache key vs. contract | Filename hashes canonical input; entry separately hashes prompt/schema/model/effort | Preserves the promised input-key layout while making every contract change a safe miss. |
+| What gets cached | Successful validated model output only | Caching fallback output would prevent a later keyed run from ever reaching the model. |
+| Empty key | Read disk cache, then fall back without importing `anthropic` | A fresh clone and CI remain independent of both network and hidden SDK credential sources. |
+| Repeated API failure | Open a run-local circuit after three consecutive failures | An invalid key or outage must not produce 473 doomed attempts. |
+| Aggregate execution | Persist proposal + policy verdict with `applied_to_ledger: false` | Phase 3 builds the decision artifact; Phase 6 applies and renders it. The current metrics must not imply suppression that did not happen. |
+
+**Numbers**
+
+- Canonical no-key agent: 473 cache lookups (472 record decisions + one batch
+  call), 0 model calls, 473 deterministic fallbacks.
+- Canonical Phase 2 behavior unchanged: 57.8% value recovery, 66 paid records,
+  157 contacts, 23 false interventions, 231 vetoes.
+- Aggregate fallback: all 9 invoices under `GRP-SURYODAYA`; policy verdict
+  `APPROVED`, final action `ESCALATE_HUMAN`, not yet applied to the ledger.
+- Test transport: first one-tick full-book run populates every successful call;
+  the second identical run has 100% disk hits and zero client calls.
+
+**Gate evidence**
+
+| Check | Result |
+|---|---|
+| `ANTHROPIC_API_KEY="" recoup run --seed 42 --arm all` | exit 0; original four-arm numbers preserved; model calls 0 |
+| replay control / baseline / policy baseline / agent | 1,506 / 1,153 / 763 / 813 rows; all chains verified; zero divergences |
+| structured request contract | exact model, adaptive thinking, effort, Pydantic output type, cache marker and fallback beta asserted |
+| second identical full-book fake-transport run | 100% disk-cache hits; zero API-client calls |
+| real model/cache run | **not run** — no Anthropic key configured; no synthetic entry committed |
+| ruff / format / mypy | clean at checkpoint |
+| pytest | 199 tests after Phase 3 additions |
+
+**Carried forward**
+
+1. Configure `ANTHROPIC_API_KEY`, approve the estimated first-run API spend,
+   run the agent arm once to seed real cache entries, run it again for the real
+   100% cache gate, and compare it against the policy baseline. Do not mark the
+   phase complete before this evidence exists.
+2. Phase 6 applies the approved aggregate suppression to the ledger and renders
+   it. Until then `applied_to_ledger` remains false.
+3. The public GitHub push remains the user's decision.
 
 ---
 

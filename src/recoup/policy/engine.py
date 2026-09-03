@@ -18,9 +18,13 @@ from recoup.domain.models import Invoice, PolicyVerdict, Tick
 from recoup.ledger.ledger import Ledger
 from recoup.policy.context import MerchantPolicy, Rule, RuleContext
 from recoup.policy.rules import RULE_ORDER
+from recoup.policy.sources import MERCHANT_POLICY
+from recoup.reasoner.schemas import BatchInsight, BatchPolicyVerdict
 
 if TYPE_CHECKING:
     from recoup.runner.batch import Proposal
+
+BATCH_POLICY_RULE_ID = "batch-cluster-suppression"
 
 
 class PolicyEngine:
@@ -82,4 +86,94 @@ class PolicyEngine:
             original=ctx.original,
             final=ctx.current,
             explanation="All policy rules passed.",
+        )
+
+    def adjudicate_batch(
+        self,
+        insight: BatchInsight,
+        tick: Tick,
+        ledger: Ledger,
+    ) -> BatchPolicyVerdict:
+        """Validate the scope of an aggregate suppression recommendation.
+
+        The model may identify a pattern, but only this method decides whether
+        individual chasing may be suppressed.  It checks current ledger facts,
+        never generator flags, archetypes, provenance, or spotlight metadata.
+        """
+        del tick
+        if not insight.pattern_found or not insight.suppression_recommended:
+            return BatchPolicyVerdict(
+                verdict=VerdictKind.APPROVED,
+                explanation=(
+                    "No aggregate suppression was proposed; per-record policy remains active."
+                ),
+            )
+
+        if insight.parent_group_id is None:
+            return self._batch_veto(insight, "The recommendation did not name a parent group.")
+
+        try:
+            proposed = [ledger.get(invoice_id) for invoice_id in insight.invoice_ids]
+        except KeyError:
+            return self._batch_veto(
+                insight, "The recommendation named an invoice outside the current ledger."
+            )
+
+        if len(proposed) < self.config.min_batch_group_invoices:
+            return self._batch_veto(
+                insight,
+                "A consolidated escalation requires at least "
+                f"{self.config.min_batch_group_invoices} invoices.",
+            )
+        if any(record.parent_group_id != insight.parent_group_id for record in proposed):
+            return self._batch_veto(
+                insight, "Every recommended invoice must belong to the named parent group."
+            )
+        if len({record.payer_id for record in proposed}) < self.config.min_batch_group_payers:
+            return self._batch_veto(
+                insight,
+                "A consolidated escalation requires at least "
+                f"{self.config.min_batch_group_payers} payers.",
+            )
+        if any(record.outstanding_paise <= 0 for record in proposed):
+            return self._batch_veto(
+                insight, "A settled invoice cannot be included in contact suppression."
+            )
+
+        expected_ids = {
+            record.invoice_id
+            for record in ledger.records
+            if record.parent_group_id == insight.parent_group_id and record.outstanding_paise > 0
+        }
+        if set(insight.invoice_ids) != expected_ids:
+            return self._batch_veto(
+                insight,
+                "The recommendation must cover the complete open parent group, "
+                "not a selected subset.",
+            )
+
+        return BatchPolicyVerdict(
+            verdict=VerdictKind.APPROVED,
+            rule_id=BATCH_POLICY_RULE_ID,
+            final_intervention=Intervention.ESCALATE_HUMAN,
+            suppression_approved=True,
+            parent_group_id=insight.parent_group_id,
+            invoice_ids=sorted(expected_ids),
+            rule_source=MERCHANT_POLICY,
+            explanation=(
+                "The complete open parent group passed the merchant breadth and membership checks; "
+                "suppress duplicate invoice-level contact and open one relationship escalation."
+            ),
+        )
+
+    @staticmethod
+    def _batch_veto(insight: BatchInsight, explanation: str) -> BatchPolicyVerdict:
+        """Reject an unsafe or unverifiable aggregate scope."""
+        return BatchPolicyVerdict(
+            verdict=VerdictKind.VETOED,
+            rule_id=BATCH_POLICY_RULE_ID,
+            parent_group_id=insight.parent_group_id,
+            invoice_ids=insight.invoice_ids,
+            rule_source=MERCHANT_POLICY,
+            explanation=explanation,
         )

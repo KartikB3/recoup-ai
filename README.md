@@ -4,10 +4,11 @@
 
 Razorpay Buildathon · Track 03: AI Revenue Recovery · solo build.
 
-> ✅ **Clear for Phase 3.** `v0.1-submittable` preserves the original deterministic
-> three-arm floor. Post-tag audit hardening adds a policy-isolated fourth arm,
-> replayable evidence and explicit explanations for every zero rule count. The
-> structured model layer remains upside, not a dependency of the no-key path.
+> ⚠️ **Phase 3 implementation is complete; live cache seeding is pending an API
+> key.** `v0.1-submittable` remains the untouched deterministic floor. The
+> structured proposer, validated disk cache, model-failure circuit breaker and
+> policy-approved batch insight are wired, while an empty key still reproduces
+> the four-arm Phase 2 numbers exactly.
 
 ---
 
@@ -61,11 +62,31 @@ The rule table labels policy bypasses, disabled configuration, defensive guards
 and unreachable Phase 2 proposal shapes separately in
 [`runs/seed42/metrics.md`](runs/seed42/metrics.md).
 
+## The batch-level insight
+
+The aggregate path reads the complete opening book as the same ground-truth-free
+snapshots used per record. On the offline canonical run it identifies all nine
+open invoices under `GRP-SURYODAYA` as correlated silence consistent with one
+account-level process event. The deterministic policy engine independently
+checks every ID, the complete group scope and minimum payer breadth before
+approving one consolidated relationship escalation.
+
+The full proposal and source-carrying verdict are committed in
+[`runs/seed42/agent/batch-insight.json`](runs/seed42/agent/batch-insight.json).
+It truthfully records `applied_to_ledger: false`: Phase 6 is where the approved
+suppression is applied and rendered, so the Phase 3 artifact does not pretend
+to have changed the four-arm metrics.
+
 ---
 
 ## Why not just a rules engine?
 
-The Phase 2 tag deliberately uses a deterministic fallback so the complete system works with no key. Phase 3 adds a structured-output model to read payer notes, replies, dispute reasons and promise language. **Every number, every rupee amount, and every go/no-go decision remains deterministic.**
+The Phase 2 tag deliberately uses a deterministic fallback so the complete
+system works with no key. Phase 3 adds a structured-output Claude proposer to
+read payer notes, replies, dispute reasons and promise language. Model output is
+cacheable but never authoritative: every proposal still passes the deterministic
+policy engine. **The model never supplies a money amount, a date calculation, or
+a final decision.**
 
 If a feature cannot survive that sentence, it is not in the build.
 
@@ -91,17 +112,20 @@ The ledger is the system of record, not Razorpay. The audit log is append-only, 
 
 ```bash
 uv sync                                   # or: pip install -e ".[dev]"
-cp .env.example .env                      # fill in Razorpay TEST keys
+cp .env.example .env                      # fill in test keys as needed
 
 recoup generate --seed 42 --count 126     # Phase 1, published seed-42 book
-recoup run --seed 42 --arm both           # Phase 2
+recoup run --seed 42 --arm all            # four arms; model cache/fallback in Phase 3
 recoup metrics seed42                     # recompute from stored artifacts
 recoup dashboard                          # Phase 5
 ```
 
 `recoup check-razorpay` creates one test-mode Payment Link to confirm credentials. It costs one unit of the 30-link budget.
 
-The full batch runs with `ANTHROPIC_API_KEY` empty or unset. In `v0.1-submittable` the agent is the deterministic fallback; Phase 3 adds a disk-cached model path without changing the policy, runner or replay contracts.
+The full batch runs with `ANTHROPIC_API_KEY` empty or unset. With a key, only
+successful validated model outputs are written under `data/llm_cache/`; errors,
+refusals, truncation and missing credentials use the deterministic fallback and
+are never cached as if they came from the model.
 
 ---
 
@@ -113,7 +137,7 @@ The full batch runs with `ANTHROPIC_API_KEY` empty or unset. In `v0.1-submittabl
 | `src/recoup/generator/` | Seeded batch generator + the free-text corpus the LLM actually reads |
 | `src/recoup/ledger/` | Virtual clock, state machine, seeded outcome adjudication |
 | `src/recoup/policy/` | **The policy engine.** Rules, ordering, and their citations |
-| `src/recoup/reasoner/` | Deterministic fallback now; structured-output model and cache in Phase 3 |
+| `src/recoup/reasoner/` | Structured Claude proposer, validated committed cache, aggregate insight, deterministic fallbacks |
 | `src/recoup/executor/` | Simulated and live-Razorpay execution, scarce-budget allocation |
 | `src/recoup/audit/` | Append-only log and its replay acceptance test |
 | `src/recoup/baseline/` | The naive chaser the agent is measured against |

@@ -1,6 +1,6 @@
 # Policy Sources
 
-> Phase 2 deliverable. Every rule, its citation, its verification status, and
+> Phase 2–3 deliverable. Every rule, its citation, its verification status, and
 > the fixed order the engine runs them in.
 
 Two kinds of rule, never confused:
@@ -161,6 +161,20 @@ asserts it over every rule.
 | 9 | `link-budget` | MERCHANT | MODIFY → `SOFT_REMINDER` | The run's global payment-link budget is spent. |
 | 10 | `high-value-escalation` | MERCHANT | MODIFY → `ESCALATE_HUMAN` | Automation proposes to `STOP` on a record above the escalation threshold. |
 
+### Aggregate rule (outside the per-record order)
+
+Phase 3 adds `batch-cluster-suppression`, a merchant-configured validation for
+the separate portfolio insight. It does not join `RULE_ORDER`: it evaluates one
+aggregate recommendation before the per-record loop rather than competing for
+first-veto position with invoice rules.
+
+The rule approves suppression only when every named invoice exists, is still
+open, belongs to the one named parent group, covers that group's complete open
+scope, and spans at least three invoices and three distinct payers. Approval
+resolves to the existing `ESCALATE_HUMAN` intervention; the model cannot invent
+a seventh action. The Phase 3 artifact records approval and explicitly records
+`applied_to_ledger: false` until the planned Phase 6 end-to-end wiring.
+
 **Why this order.** Rules 1–2 are about the record itself and produce the most
 explanatory reason a reader could be given, so they run first — for a disputed
 invoice contacted at 20:00, "this invoice is disputed" is a better answer than
@@ -191,6 +205,7 @@ limits belong to each proposer and are called out separately below.
 | Escalate rather than abandon above | ₹5,00,000 | Applies to `STOP`, so a large receivable is never written off by automation without a human seeing it. |
 | Global payment-link budget per run | `None` (off) | Set to 30 for live runs only (ISS-001). Off for the simulated batch — see the note below. |
 | Attempts before automation stops | Baseline: 5 contacts. Agent: 6 decision rungs (5 contacts, then `STOP`). | **Explicitly not regulatory**, see ISS-009. Owned by each proposer, not the engine. The agent's post-phone reminder is required for the RBI behavioural check; see ISS-025. |
+| Parent-level escalation breadth | 3 open invoices across 3 distinct payers, covering the complete open group | Applies only to the Phase 3 batch recommendation; it is not a regulatory threshold. |
 
 The ₹5,00,000 default is `50_000_000` paise. A regression test equates it to
 the generator's escalation reference; this prevents Indian digit grouping from

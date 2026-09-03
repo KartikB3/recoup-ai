@@ -3,13 +3,15 @@
 **Track 03: AI Revenue Recovery · Razorpay Buildathon · Solo · ~7 days**
 Companion to `recoup-build-spec.md` (the *what*). This is the *how*.
 
-Status: **Phase 2 audit hardening complete; clear for Phase 3.** `recoup run
---seed 42 --arm both` now produces control, naive baseline, naive + policy and
-deterministic-agent artifacts plus annotated JSON/Markdown metrics. All four
-logs replay with zero divergences. 183 tests, mypy strict clean over 51 source
-files. `v0.1-submittable` remains the untouched recoverable floor. **Next:
-Phase 3 — structured reasoner output over the already-green fallback seam.**
-The public push is still deferred to the user.
+Status: **Phase 3 implementation complete; live model/cache gate pending.** The
+structured Claude proposer, contract-aware input cache, failure circuit breaker
+and policy-approved aggregate artifact are wired. The empty-key four-arm run
+preserves every Phase 2 number and all four logs replay with zero divergences.
+The full-book fake transport reaches 100% cache hits on its second run. A real
+Anthropic run, committed model outputs and model-vs-policy-baseline comparison
+remain blocked by an unconfigured key (ISS-033), so Phase 3 is not closed.
+`v0.1-submittable` remains the untouched recoverable floor. The public push is
+still deferred to the user.
 Last updated: 2026-09-03
 
 ---
@@ -97,7 +99,10 @@ contact_ledger: ContactLedger   # counts + timestamps, owned by the policy engin
 
 ### 2.2 `LLMProposal` — reasoner output
 
-Pydantic model → JSON Schema → `output_config: {format: ...}`, read back with `client.messages.parse()`.
+Pydantic model → JSON Schema via the Python helper's
+`output_format=LLMProposal`, read back with `client.messages.parse()`.
+`output_config` separately carries `effort`; raw non-helper calls put the JSON
+schema under `output_config.format` (ISS-032).
 
 ```
 diagnosis: str
@@ -218,9 +223,13 @@ floor and is not moved by post-tag hardening.
 
 **~1 day. Everything here is upside; the Phase 2 tag is your floor.**
 
+**🟡 2026-09-03 checkpoint:** implementation and deterministic/fake-transport
+gates are green. Real model execution, committed cache seeding and comparative
+evaluation remain pending `ANTHROPIC_API_KEY` (ISS-033).
+
 | Task | Notes |
 |---|---|
-| `reasoner/schemas.py` | Pydantic → JSON Schema → `output_config: {format: ...}`. Read back with `client.messages.parse()`. |
+| `reasoner/schemas.py` | Pydantic → JSON Schema through `messages.parse(output_format=Model)`; `output_config` carries effort. |
 | `reasoner/prompts.py` | System prompt carries the intervention space, the policy rules (so the model proposes *plausible* actions), and the "you never output a rupee amount or a date" constraint. **Put the frozen system prompt first and cache it.** The canonical agent run has 472 decision rows; budget against that upper bound, not record count. |
 | `reasoner/cache.py` | Cache by SHA-256 of the canonical input snapshot. Disk-backed at `data/llm_cache/`, **committed to the repo**. This makes runs reproducible *and* makes the demo work with the API down. Do not let this become an untracked directory — the offline gate silently depends on it. |
 | `reasoner/fallback.py` | **Landed early in Phase 2 and already drives the agent arm.** Phase 3 preserves it as the deterministic path for API errors, timeouts or refusals. Assume the API is down while recording. Branch on a falsy-or-missing key, not key absence; CI uses `ANTHROPIC_API_KEY: ""`. |
