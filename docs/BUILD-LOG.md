@@ -16,7 +16,7 @@ Append-only. One entry per phase close. Newest at the bottom.
 | 2 | Policy engine + baseline + metrics | ✅ done | ✅ met | `v0.1-submittable` |
 | 3 | LLM reasoner layer | ✅ done | ✅ met (gate amended, see entry) | `29acd0f`..`2f135ab` |
 | 4 | Razorpay live slice | ✅ done | ⚠️ offline half met; live round trip is the user's to run | `77767c0`..`7490a86` |
-| 5 | Dashboard | ✅ done | ✅ met | `dc9f1a1` |
+| 5 | Dashboard | ✅ done | ✅ met | `7103489` |
 | 6 | Evaluation, hardening, submission prose | ⬜ not started | — | — |
 | 7 | Video & submission | ⬜ not started | — | — |
 
@@ -696,7 +696,7 @@ Also: `httpx` added to the dev extra, for `fastapi.testclient`.
 **Model/effort used:** Codex (GPT-5), high
 **Gate:** ✅ met — all three Streamlit views exercised in-process against
 `runs/<id>/`; 274 tests pass offline; ruff, format and mypy strict clean
-**Commit / tag:** `dc9f1a1`
+**Commit / tag:** `7103489`
 
 **What was built**
 
