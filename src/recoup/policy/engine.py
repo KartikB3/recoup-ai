@@ -42,6 +42,27 @@ class PolicyEngine:
         self.config = config or MerchantPolicy()
         self.rules = rules
         self.links_used = 0
+        self.suppressed_invoices: frozenset[str] = frozenset()
+        self.group_escalation_opened = False
+
+    def arm_batch_suppression(
+        self,
+        insight: BatchInsight,
+        verdict: BatchPolicyVerdict,
+    ) -> bool:
+        """Let an approved aggregate decision bind on individual invoices.
+
+        Separate from :meth:`adjudicate_batch` on purpose. Adjudicating decides
+        whether the recommendation is *allowed*; arming is the runner asking for
+        it to be *applied*. Keeping them apart means a caller cannot apply a
+        recommendation the engine refused, and the artifact's
+        ``applied_to_ledger`` flag reports what actually happened.
+        """
+        if not verdict.suppression_approved or verdict.verdict is VerdictKind.VETOED:
+            return False
+        self.suppressed_invoices = frozenset(insight.invoice_ids)
+        self.group_escalation_opened = False
+        return bool(self.suppressed_invoices)
 
     def adjudicate(
         self,
@@ -60,6 +81,8 @@ class PolicyEngine:
             config=self.config,
             links_used=self.links_used,
             llm_proposal=proposal.llm_proposal,
+            suppressed_invoices=self.suppressed_invoices,
+            group_escalation_opened=self.group_escalation_opened,
         )
         first_modification: PolicyVerdict | None = None
 
@@ -78,6 +101,13 @@ class PolicyEngine:
 
         if ctx.current is Intervention.PAYMENT_LINK:
             self.links_used += 1
+        if (
+            ctx.current is Intervention.ESCALATE_HUMAN
+            and record.invoice_id in self.suppressed_invoices
+        ):
+            # The group's single consolidated escalation is now open, so every
+            # later contact against the group is a duplicate.
+            self.group_escalation_opened = True
 
         if first_modification is not None:
             return first_modification.model_copy(update={"final": ctx.current})

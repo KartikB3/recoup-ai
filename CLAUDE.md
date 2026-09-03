@@ -31,12 +31,12 @@ Read in this order:
 - `runs/seed42/` — the four canonical arms. **Deterministic-fallback output.**
   Control 49.25%, naive baseline 62.34% at 459 contacts, the identical proposer
   behind policy 56.54% at 161, the deterministic agent behind the same policy
-  57.75% at 157 with 23 false interventions. Eight `rbi-contact-hours` vetoes
+  56.72% at 137 with 23 false interventions. Six `rbi-contact-hours` vetoes
   prove the adopted contact rule is live. **No model output appears here and
   these numbers must never be relabelled as an LLM result.**
 - `runs/seed42-tiered/` — the same four arms with the agent using **real model
   proposals at first review** and the ladder after. A cost-tiered architecture,
-  not a compromise. **54.43% at 104 contacts with 0 scored false
+  not a compromise. **54.09% at 89 contacts with 0 scored false
   interventions.** Report it as a harm result with its −3.32-point recovery cost
   stated; never as a recovery beat (ISS-038, OBS-008).
 

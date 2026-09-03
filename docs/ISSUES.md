@@ -427,8 +427,8 @@ baseline, any claimed model gain would remain confounded.
 **Resolution:** Added `POLICY_BASELINE`, which runs the **identical**
 `NaiveChaser` through a fresh engine. Measured on seed 42: policy alone moves
 459 → 161 contacts, 104 → 23 false interventions and 62.3% → 56.5% value
-recovery. With policy held constant, the agent moves 161 → 157 contacts,
-63 → 66 paid records and 56.5% → 57.8% value recovery, with the same 23 false
+recovery. With policy held constant, the agent moves 161 → 137 contacts,
+63 → 64 paid records and 56.54% → 56.72% value recovery, with the same 23 false
 interventions. All four logs replay with zero divergences.
 **Status:** RESOLVED.
 
@@ -635,8 +635,8 @@ the model.
 **What we tried:** Bounded it arithmetically before spending. The control arm
 recovers 49.25% with zero contact, so the entire spread between chasing well and
 never chasing is 8.5 points; escalating 40.1% of book value can therefore cost
-at most about 3.4 points. The measured cost-tiered arm came in at 54.43% against
-57.75% — a 3.32-point cost, inside the predicted bound.
+at most about 3.4 points. The measured cost-tiered arm came in at 54.09% against
+56.72% — a 2.63-point cost, inside the predicted bound.
 **Design consequence:** The full-book model arm was not purchased. The
 comparison is reported as a harm result, not a recovery result, and the recovery
 cost is stated plainly rather than hidden. See OBS-008.
@@ -911,11 +911,11 @@ only arm demonstrating one was the arm the project argues against.
 **What we tried:** The fix OBS-004 itself named — a longer horizon. `recoup run
 --arm all --no-model --ticks 224 --run-id seed42-t224`, committed as a clearly
 labelled secondary artifact. Both policy arms now reach the terminal path:
-policy baseline 14 `STOP`s and 13 write-offs, agent 4 and 4. All four arms
+policy baseline 14 `STOP`s and 13 write-offs, agent 3 and 3. All four arms
 replay clean (2417 / 1158 / 1017 / 1056 rows).
 **Design consequence:** No code change; the path was correct and merely
 unreached. Two things came out of the run that the coverage fix did not
-anticipate. The agent stops **4 times against the policy baseline's 14** under
+anticipate. The agent stops **3 times against the policy baseline's 14** under
 the identical engine, which is a measurable statement about its reluctance to
 abandon a receivable. And the canonical arms' apparent recovery deficit turned
 out to be largely horizon truncation — see OBS-011. The canonical horizon stays
@@ -924,6 +924,44 @@ never the headline.
 **Status:** RESOLVED for the terminal path. The `high-value-escalation` guard is
 still unexercised for a different and now-understood reason; OBS-004 is rewritten
 to cover only that.
+
+---
+
+### ISS-045 · 🟡 An approved aggregate decision changed nothing until Phase 6
+
+**Phase:** 6
+**What happened:** Phase 3 produced a real batch insight, the policy engine
+validated the whole group against the ledger and approved suppression -- and
+then the artifact recorded `applied_to_ledger: false` and nothing else happened.
+Nothing read `batch-insight.json`: not the runner, not the dashboard. The
+headline aggregate capability was inert.
+**Why it matters:** The track asks for an agent that *executes a bounded
+recovery workflow*. A recommendation that is approved and then ignored is a
+recommendation, not a workflow.
+**What we tried:** The first instinct was to have the runner skip contact on the
+nine invoices. Rejected: silently skipping records is invisible in the audit log
+and would have made nine decisions disappear with no verdict explaining them,
+which is exactly what invariant 5 exists to prevent.
+**Design consequence:** The decision reaches records through the policy seam
+instead. `PolicyEngine.arm_batch_suppression` is deliberately separate from
+`adjudicate_batch` -- adjudicating decides whether a recommendation is *allowed*,
+arming is the runner asking for it to be *applied* -- so a caller cannot apply
+something the engine refused, and `applied_to_ledger` reports what the engine
+accepted rather than what the model asked for. A new rule,
+`batch-cluster-suppression`, sits at position 3 in the ladder, after
+`visible-dispute` so an invoice with its own dispute is still routed on its own
+merits. The first contact against the group is modified to one consolidated
+`ESCALATE_HUMAN`; every later one is vetoed. Both carry the rule id, so the
+suppression appears in `rule_firings` and in the log as 54 logged decisions
+rather than 54 silent skips.
+**Effect on the numbers:** agent recovery 57.75% -> 56.72% and contacts 157 ->
+137 on the canonical run; 54.43% -> 54.09% and 104 -> 89 on the cost-tiered run.
+False interventions are unchanged at 23 and 0. The deterministic proposer's edge
+over the policy baseline narrows from +1.21 to +0.18 points, which is worth
+saying out loud: most of the agent column's contact reduction is now the
+aggregate decision, not the per-record ladder.
+**Status:** RESOLVED -- applied, rendered in `rule_firings`, and covered by two
+tests including one asserting a hallucinated group never binds.
 
 ---
 

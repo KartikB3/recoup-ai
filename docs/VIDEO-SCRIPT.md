@@ -8,7 +8,7 @@ measured money recovered across a batch, with compliant escalation, stopping
 rules, and an audit trail."* Every beat below serves one of those four. Nothing
 else earns screen time.
 
-Total spoken words ≈ 690, which is a comfortable five minutes at 140 wpm. It is
+Total spoken words ≈ 760, which is a comfortable five minutes at 140 wpm. It is
 slightly under on purpose — leave air around the terminal beats.
 
 ---
@@ -60,15 +60,15 @@ uv run recoup dashboard
 > already paid, or who had an open dispute on the invoice.
 >
 > Recoup puts a deterministic policy engine in front of every action. Recovery
-> drops to fifty-seven point eight percent. Contacts drop from four hundred and
-> fifty-nine to a hundred and fifty-seven. Wrong contacts drop from a hundred
+> drops to fifty-six point seven percent. Contacts drop from four hundred and
+> fifty-nine to a hundred and thirty-seven. Wrong contacts drop from a hundred
 > and four to twenty-three.
 >
-> Four and a half points of recovery, for two-thirds fewer customer contacts. I
-> think that is the trade a real finance team wants, and I would rather defend
-> it than the bigger number.
+> Five and a half points of recovery, for seventy percent fewer customer
+> contacts. I think that is the trade a real finance team wants, and I would
+> rather defend it than the bigger number.
 
-*Source: same file — agent 57.75% at 157 contacts, 23 false interventions.*
+*Source: same file — agent 56.72% at 137 contacts, 23 false interventions.*
 
 ---
 
@@ -104,16 +104,23 @@ beside it.
 > engine approves, reduces, or vetoes.
 >
 > This one is a veto. Contact attempted outside the eight-a-m-to-seven-p-m
-> window that the Reserve Bank's recovery guidance sets. Eight of those fired in
+> window that the Reserve Bank's recovery guidance sets. Six of those fired in
 > this run.
 >
 > And every rule on screen carries its source, whether it was verified at the
 > issuing body, and the caveat on its scope. Where a rule is merchant policy
 > rather than regulation, it says so. Nothing here is dressed up as a law that
 > is not one.
+>
+> The engine also disposes at the account level. Nine invoices across six
+> different companies share one parent group, and they all went quiet at once.
+> The agent proposes treating that as a single account event; the engine checks
+> the whole group against the ledger, approves it, and then opens one
+> relationship escalation instead of nine separate chases. Fifty-four duplicate
+> contacts suppressed, every one of them a logged decision.
 
-*Source: canonical agent run — 8 `rbi-contact-hours` firings. The tiered run
-shows 6.*
+*Source: canonical agent run — 6 `rbi-contact-hours` firings. The tiered run
+shows 5.*
 
 ---
 
@@ -124,7 +131,7 @@ shows 6.*
 > Recovery is not the only job. Knowing when to give up matters too.
 >
 > Over fifty-six virtual days the naive chaser abandons thirty-six invoices and
-> writes off fifteen. Recoup, running the same policy engine, stops on four.
+> writes off fifteen. Recoup, running the same policy engine, stops on three.
 >
 > One note of honesty: twenty-eight days is the horizon everything else in this
 > project is measured on, and it was fixed before any of these results existed.
@@ -132,7 +139,7 @@ shows 6.*
 > timeframe that flatters your own agent is exactly the mistake I did not want
 > to make.
 
-*Source: `runs/seed42-t224/` — baseline 36 STOPs / 15 write-offs, agent 4 / 4.
+*Source: `runs/seed42-t224/` — baseline 36 STOPs / 15 write-offs, agent 3 / 3.
 The horizon is a §0 locked decision; see OBS-011.*
 
 ---
@@ -155,10 +162,10 @@ page, the webhook arriving, the ledger flipping to `PAID`. Then run the replay.
 
 > That rebuilds every invoice's final state from the append-only log alone, with
 > no other input, and checks it against what the run actually produced. Eight
-> hundred and thirteen rows, hash chain verified, replay matches the ledger.
+> hundred and six rows, hash chain verified, replay matches the ledger.
 > That is an enforced test, not a claim.
 
-*Source: `recoup replay seed42/agent` → 813 rows.*
+*Source: `recoup replay seed42/agent` → 806 rows.*
 
 ---
 
@@ -196,8 +203,8 @@ Drop in this order. Never cut the replay.
 
 | Claim | Command |
 |---|---|
-| 49.25 / 62.34 / 56.54 / 57.75, contacts, false interventions | `recoup metrics seed42` |
-| 0 false interventions, 104 contacts | `recoup metrics seed42-tiered` |
-| 36 / 15 vs 4 / 4 write-offs | `recoup metrics seed42-t224` |
-| 813 rows, chain verified | `recoup replay seed42/agent` |
+| 49.25 / 62.34 / 56.54 / 56.72, contacts, false interventions | `recoup metrics seed42` |
+| 0 false interventions, 89 contacts | `recoup metrics seed42-tiered` |
+| 36 / 15 vs 3 / 3 write-offs | `recoup metrics seed42-t224` |
+| 806 rows, chain verified | `recoup replay seed42/agent` |
 | 1 of 30 test links consumed | `docs/ISSUES.md` ISS-001 |

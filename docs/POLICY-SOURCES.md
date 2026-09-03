@@ -152,14 +152,15 @@ asserts it over every rule.
 |---|---|---|---|---|
 | 1 | `nothing-outstanding` | MERCHANT | VETO | A contact is proposed on a record with nothing left to collect. |
 | 2 | `visible-dispute` | MERCHANT | MODIFY → `ESCALATE_HUMAN` | The record is in `DISPUTED`, or carries a `dispute_description`. |
-| 3 | `rbi-contact-hours` | **REGULATORY** | VETO + defer | A contact would land before 08:00 or after 19:00 virtual time. |
-| 4 | `trai-promotional-window` | **REGULATORY** | VETO + defer | A `-P` message would land outside the 10:00–21:00 default bands. |
-| 5 | `trai-message-category` | **REGULATORY** | VETO | A drafted message carries a category the intervention may not use. |
-| 6 | `payer-contact-frequency` | MERCHANT | VETO + defer | The payer has already had 4 contacts in the rolling 30-day window. |
-| 7 | `payer-contact-spacing` | MERCHANT | VETO + defer | The payer was contacted less than 72h ago, on any of their invoices. |
-| 8 | `invoice-link-cap` | MERCHANT | MODIFY → `SOFT_REMINDER` | 3 payment links have already gone out on this invoice. |
-| 9 | `link-budget` | MERCHANT | MODIFY → `SOFT_REMINDER` | The run's global payment-link budget is spent. |
-| 10 | `high-value-escalation` | MERCHANT | MODIFY → `ESCALATE_HUMAN` | Automation proposes to `STOP` on a record above the escalation threshold. |
+| 3 | `batch-cluster-suppression` | MERCHANT | MODIFY → `ESCALATE_HUMAN`, then VETO | An approved aggregate pattern holds the parent group: the first contact opens one consolidated escalation, later ones are suppressed. |
+| 4 | `rbi-contact-hours` | **REGULATORY** | VETO + defer | A contact would land before 08:00 or after 19:00 virtual time. |
+| 5 | `trai-promotional-window` | **REGULATORY** | VETO + defer | A `-P` message would land outside the 10:00–21:00 default bands. |
+| 6 | `trai-message-category` | **REGULATORY** | VETO | A drafted message carries a category the intervention may not use. |
+| 7 | `payer-contact-frequency` | MERCHANT | VETO + defer | The payer has already had 4 contacts in the rolling 30-day window. |
+| 8 | `payer-contact-spacing` | MERCHANT | VETO + defer | The payer was contacted less than 72h ago, on any of their invoices. |
+| 9 | `invoice-link-cap` | MERCHANT | MODIFY → `SOFT_REMINDER` | 3 payment links have already gone out on this invoice. |
+| 10 | `link-budget` | MERCHANT | MODIFY → `SOFT_REMINDER` | The run's global payment-link budget is spent. |
+| 11 | `high-value-escalation` | MERCHANT | MODIFY → `ESCALATE_HUMAN` | Automation proposes to `STOP` on a record above the escalation threshold. |
 
 ### Aggregate rule (outside the per-record order)
 

@@ -30,6 +30,10 @@ DEFINITIONS: dict[str, str] = {
 RULE_RUN_NOTES: dict[str, str] = {
     "nothing-outstanding": ("Defensive guard; zero-balance records are terminal before review."),
     "visible-dispute": "Active merchant guard for structured dispute state.",
+    "batch-cluster-suppression": (
+        "Active when an aggregate suppression is approved; the first group contact "
+        "opens one consolidated escalation and later ones are suppressed."
+    ),
     "rbi-contact-hours": (
         "Active adopted standard; the cited circular governs regulated-loan recovery."
     ),

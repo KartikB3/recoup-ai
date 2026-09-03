@@ -69,6 +69,8 @@ def _ctx(
     tick: int = 0,
     config: MerchantPolicy | None = None,
     proposal: LLMProposal | None = None,
+    suppressed: frozenset[str] = frozenset(),
+    group_escalation_opened: bool = False,
 ) -> RuleContext:
     selected = record or generate_batch(42).records[0]
     selected_ledger = ledger or Ledger([selected])
@@ -76,6 +78,8 @@ def _ctx(
         record=selected,
         original=intervention,
         current=intervention,
+        suppressed_invoices=suppressed,
+        group_escalation_opened=group_escalation_opened,
         tick=tick,
         ledger=selected_ledger,
         config=config or MerchantPolicy(),
@@ -108,6 +112,10 @@ def _firing_contexts() -> dict[str, RuleContext]:
     return {
         "nothing-outstanding": _ctx(Intervention.SOFT_REMINDER, record=settled),
         "visible-dispute": _ctx(Intervention.SOFT_REMINDER, record=disputed),
+        "batch-cluster-suppression": _ctx(
+            Intervention.SOFT_REMINDER,
+            suppressed=frozenset({batch.records[0].invoice_id}),
+        ),
         "rbi-contact-hours": _ctx(Intervention.SOFT_REMINDER, tick=2),
         "trai-promotional-window": _ctx(
             Intervention.SOFT_REMINDER,

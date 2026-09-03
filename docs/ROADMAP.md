@@ -17,7 +17,7 @@ horizon that verification must use).
 
 The cache still holds 77 real record proposals and one batch insight, for
 $2.09. The cost-tiered arm in `runs/seed42-tiered/` cuts scored false
-interventions **23 → 0** for 3.32 recovery points, and still reproduces byte for
+interventions **23 → 0** for 2.63 recovery points, and still reproduces byte for
 byte after the Phase 4 executor change. The four canonical `runs/seed42/` arms
 are untouched. The full-book model arm was deliberately not bought (ISS-038,
 OBS-008). `v0.1-submittable` remains untouched. The public push remains
@@ -31,7 +31,7 @@ deliberately deferred to the user.
 
 | # | Item | Phase | State |
 |---|---|---|---|
-| 11 | Batch-level insight (§7b) — the cluster event. **Built in Phase 3; applied and rendered in Phase 6.** | 3 → 6 | 🟡 real model insight cached and policy-approved; Phase 6 application still pending |
+| 11 | Batch-level insight (§7b) — the cluster event. **Built in Phase 3; applied in Phase 6.** | 3 → 6 | ✅ done — binds through `batch-cluster-suppression`, 54 logged suppressions (ISS-045) |
 | 23 | Exercise the terminal path end to end (`STOP` → `EXHAUSTED` → write-off) so the bar's "stopping rules" is demonstrated, not just tested | 6 | ✅ done — `runs/seed42-t224/`, ISS-044, OBS-011 |
 | 14 | Seven submission-form answers drafted | 6 | ⬜ |
 | 15 | Five-minute video | 7 | 🟡 narration script drafted in `docs/VIDEO-SCRIPT.md`; recording is the user's |
@@ -43,13 +43,13 @@ deliberately deferred to the user.
 The four-arm comparison is now a standing contract. `AlwaysWait` preserves the
 49.3% floor. The naive baseline gets 62.3% with 459 contacts; the identical
 proposer behind policy gets 56.5% with 161; the deterministic agent behind the
-same policy gets 57.8% with 157. Every later table must preserve all four
+same policy gets 56.7% with 137. Every later table must preserve all four
 columns: the middle pair isolates policy value, and the final pair isolates
 proposer value.
 
 **A fifth column joined it in Phase 3.** `runs/seed42-tiered/` is the same four
 arms with the agent using real model proposals at first review and the ladder
-after — a cost-tiered architecture, not a compromise. It records 54.43% with 104
+after — a cost-tiered architecture, not a compromise. It records 54.09% with 89
 contacts and **0** scored false interventions against the ladder arm's 23. Report
 it as a harm result with its recovery cost stated, never as a recovery beat
 (ISS-038, OBS-008). Keep the two run directories distinct: `runs/seed42/` is

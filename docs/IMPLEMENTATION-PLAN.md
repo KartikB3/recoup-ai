@@ -10,7 +10,7 @@ aggregate artifact are wired, and the cache holds **real** model output — 77
 record proposals and one batch insight, bought for $2.09. `runs/seed42-tiered/`
 is a fifth, cost-tiered arm: the model triages at first review, the
 deterministic ladder follows through. It cuts scored false interventions
-**23 → 0** and contacts 157 → 104 for **3.32 recovery points**. The four
+**23 → 0** and contacts 137 → 89 for **2.63 recovery points**. The four
 canonical `runs/seed42/` arms are untouched deterministic-fallback numbers and
 must never be relabelled as an LLM result. The full-book model arm was
 deliberately not bought: see ISS-038 and OBS-008 — the recovery column cannot
@@ -292,7 +292,7 @@ deterministic fallback.
 *Retired, not failed:* "beat the policy baseline on recovery". ISS-038 and
 OBS-008 — `ESCALATE_HUMAN` ends automation and the simulation models no human
 collector, so every correct escalation scores as forgone recovery. The measured
-−3.32-point cost is reported plainly instead of a beat.
+−2.63-point cost is reported plainly instead of a beat.
 
 > Empty and unset are different conditions and `fallback.py` must branch on **falsy-or-missing**, not on `"ANTHROPIC_API_KEY" not in os.environ`. An empty value still outranks every other credential source rather than falling through to a profile, which makes it the stricter test — so that is the one CI runs.
 

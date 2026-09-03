@@ -316,24 +316,48 @@ def test_second_identical_run_is_entirely_disk_cached(tmp_path: Path) -> None:
     )
 
 
-def test_batch_insight_is_persisted_beside_unchanged_audit(tmp_path: Path) -> None:
+def test_an_approved_batch_insight_is_applied_and_replays(tmp_path: Path) -> None:
+    """An approved aggregate decision must reach records, not just be stored."""
     batch = generate_batch(42)
     reasoner = ClaudeReasoner(api_key="", cache_root=tmp_path / "cache")
+    engine = PolicyEngine()
     result = run_batch(
         batch.records,
         reasoner,
         seed=42,
         run_id="batch-artifact",
         horizon=1,
-        policy=PolicyEngine(),
+        policy=engine,
         batch_reasoner=reasoner,
     )
-    assert result.batch_insight is not None
-    assert result.batch_insight.policy_verdict.suppression_approved
-    assert not result.batch_insight.applied_to_ledger
+    insight = result.batch_insight
+    assert insight is not None
+    assert insight.policy_verdict.suppression_approved
+    assert insight.applied_to_ledger
+    # Applied means bound to the exact group policy validated, nothing wider.
+    assert engine.suppressed_invoices == frozenset(insight.proposal.invoice_ids)
     out = write_run(result, batch, tmp_path / "run")
     assert (out / "batch-insight.json").exists()
     assert not compare(result.records, replay(batch.records, result.log.rows).ledger.records)
+
+
+def test_a_vetoed_batch_insight_never_binds(tmp_path: Path) -> None:
+    """`applied_to_ledger` reports what policy accepted, not what was proposed."""
+    engine = PolicyEngine()
+    hallucinated = BatchInsight(
+        pattern_found=True,
+        diagnosis="Invented group.",
+        parent_group_id="GRP-DOES-NOT-EXIST",
+        invoice_ids=["ASH-2026-0001", "NOT-A-REAL-INVOICE"],
+        confidence=0.9,
+        reasoning="Invented.",
+        suppression_recommended=True,
+    )
+    ledger = Ledger(generate_batch(42).records)
+    verdict = engine.adjudicate_batch(hallucinated, 0, ledger)
+    assert verdict.verdict is VerdictKind.VETOED
+    assert not engine.arm_batch_suppression(hallucinated, verdict)
+    assert engine.suppressed_invoices == frozenset()
 
 
 def test_empty_key_phase3_path_does_not_import_anthropic() -> None:

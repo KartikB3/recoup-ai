@@ -31,9 +31,10 @@ real model proposals at first review and the deterministic ladder after.
 **Measured.** With the proposer held constant, policy moves 459 → 161 contacts,
 104 → 23 false interventions and 62.3% → 56.5% value recovery. With policy held
 constant, swapping the naive chaser for the deterministic ladder moves
-161 → 157 contacts, 63 → 66 paid records and 56.5% → 57.8% value recovery — and
-leaves false interventions at exactly 23. The ladder also spends 15 more
-payment links (56 → 71) to get there.
+161 → 137 contacts, 63 → 64 paid records and 56.54% → 56.72% value recovery — and
+leaves false interventions at exactly 23. Most of that contact reduction is the
+approved account-level suppression binding, not the per-record ladder:
+`batch-cluster-suppression` fires 54 times.
 
 **Why it matters.** ISS-029 records these numbers as proof the confound is
 gone. The consequence is not recorded anywhere: **the four-arm table does not
@@ -43,23 +44,36 @@ for 5.8 points of recovery, and the proposer is roughly neutral on top of
 that."
 
 This is the correct framing to carry into Phase 3, and it is a good position
-rather than a weak one — the bar is now precisely measured (57.8% value at 157
+rather than a weak one — the bar is now precisely measured (56.72% value at 137
 contacts, 23 false interventions), so any model gain is legible instead of
 confounded. But it means Phase 3 cannot justify itself on per-record recovery.
-It has to earn its place on what the ladder structurally *cannot* do: reading
-the free text (see OBS-002, and ISS-036 for the result) and the batch-level
-cluster insight
-(spec §7b, ROADMAP P0 #11). Both are already P0. This observation is the
-argument for why they, not recovery percentage, are the Phase 3 headline.
+It has to earn its place on what the ladder structurally *cannot* do, and that
+is **one thing, not two**: reading the free text (see OBS-002, and ISS-036 for
+the result).
 
-**What would change it.** A Phase 3 arm that beats 57.8% at ≤157 contacts, or —
+The batch-level cluster insight (spec §7b, ROADMAP P0 #11) was assumed to be the
+second, and it is not. The deterministic fallback proposes the **identical**
+group — `GRP-SURYODAYA`, the same nine invoice ids — because `parent_group_id`
+is a structured field and grouping on it needs no prose at all. What the model
+adds there is the quality of the *diagnosis*, not the detection: it names six
+separate payer entities in different cities and reads their replies as one
+account-level condition, where the fallback says only "correlated silence is
+consistent with one account-level process event."
+
+That is a real difference for a human reading the artifact, and it is not a
+capability difference. The cluster mechanism is worth demonstrating — it now
+binds, suppressing 54 duplicate contacts through a logged policy decision — but
+it must be presented as *the policy engine acting on an account-level pattern*,
+never as something only the model could find.
+
+**What would change it.** A Phase 3 arm that beats 56.72% at ≤137 contacts, or —
 more likely and more interesting — one that holds recovery flat while cutting
 the residual harm categories below.
 
 **Phase 3 result.** The bar held and the model did not clear it on recovery,
 which is the outcome this observation predicted. With 77 real model proposals at
-first review, `runs/seed42-tiered/` records 54.43% value recovery against the
-ladder's 57.75% — the proposer *costs* 3.32 points. It buys 157 → 104 contacts
+first review, `runs/seed42-tiered/` records 54.09% value recovery against the
+ladder's 56.72% — the proposer *costs* 2.63 points. It buys 137 → 89 contacts
 and 23 → 0 scored false interventions.
 
 So the framing above is confirmed rather than overturned, with one correction:
@@ -69,7 +83,7 @@ policy engine already makes. The four canonical `runs/seed42/` numbers remain
 deterministic-fallback numbers and must never be relabelled as an LLM result;
 the model numbers live in `runs/seed42-tiered/` and are labelled as a
 cost-tiered arm. Note also ISS-038: the recovery column cannot reward correct
-escalation, so 54.43% is a floor on the model's real-world value, not a
+escalation, so 54.09% is a floor on the model's real-world value, not a
 measurement of it.
 
 ---
@@ -267,7 +281,7 @@ is ever recovered *because* it was escalated.
 recognising a blocker that automated chasing cannot clear — a place-of-supply
 error crediting GST to the wrong state, a vendor-master rebuild, a payer who has
 already paid — and handing it to a person. In the metric table every one of
-those scores as forgone recovery. The 3.32-point cost in `runs/seed42-tiered/`
+those scores as forgone recovery. The 2.63-point cost in `runs/seed42-tiered/`
 is therefore a **floor on the model's value, not a measurement of it**, and the
 gap is not small: it is whatever fraction of Rs 1.01 crore a human collector
 would actually resolve.
@@ -360,10 +374,10 @@ ISS-001 explains why the cap was deliberately not raised.
 | control | 49.25% · 0 contacts | 58.47% · 0 |
 | baseline | 62.34% · 459 | 66.99% · 459 |
 | baseline + policy | 56.54% · 161 | 65.82% · 233 |
-| agent | 57.75% · 157 | **66.71% · 223** |
+| agent | 56.72% · 137 | **66.50% · 199** |
 
-The agent trails naive chasing by **4.59 points** at 28 days and by **0.28
-points** at 56 days, using roughly half the contacts either way.
+The agent trails naive chasing by **5.62 points** at 28 days and by **0.49
+points** at 56 days, using roughly a third to a half of the contacts either way.
 
 **Why it matters.** The headline four-arm table costs the policy arms about four
 points of recovery, and ISS-028 already labels the zero write-offs as horizon

@@ -126,6 +126,12 @@ class RuleContext:
 
     llm_proposal: LLMProposal | None = None
 
+    suppressed_invoices: frozenset[str] = frozenset()
+    """Invoices under an aggregate suppression the engine has already approved."""
+
+    group_escalation_opened: bool = False
+    """Whether the group's one consolidated escalation has already been opened."""
+
     def payer_contacts_in_window(self) -> int:
         """Contacts to this payer inside the rolling window, all invoices."""
         floor = max(0, self.tick - self.config.contact_window_ticks)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from dashboard.data import (
@@ -94,8 +95,14 @@ def test_audit_filters_operate_on_rows_read_from_jsonl() -> None:
         "ASH-2026-0046",
         "ASH-2026-0047",
     }
-    assert len(vetoes) == 8
-    assert len(rbi) == 8
+    # Counted from the artifact rather than hardcoded: these move whenever the
+    # rule ladder changes, and a stale literal here is a failing test that says
+    # nothing about the filter under test.
+    firings = json.loads((RUNS / "seed42" / "metrics.json").read_text(encoding="utf-8"))
+    expected_rbi = firings["arms"]["agent"]["rule_firings"]["rbi-contact-hours"]
+    assert len(rbi) == expected_rbi > 0
+    assert all(row["rule_id"] == "rbi-contact-hours" for row in rbi)
+    assert vetoes and all(row["verdict"] == "VETOED" for row in vetoes)
     assert all(row["source_verified"] is True for row in rbi)
 
 
@@ -142,4 +149,8 @@ def test_all_three_streamlit_views_render_from_local_artifacts() -> None:
     assert not app.exception
     assert app.title[0].value == "The audit log, without the gloss"
     assert len(app.dataframe) == 1
-    assert app.metric[0].value == "813"
+    # Read from the artifact: the row count moves with any policy change.
+    expected_rows = sum(
+        1 for _ in (RUNS / "seed42" / "agent" / "audit.jsonl").open(encoding="utf-8")
+    )
+    assert app.metric[0].value == str(expected_rows)

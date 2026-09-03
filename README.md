@@ -44,23 +44,24 @@ same policy engine, isolating proposer value.
 
 | Metric | Control | Baseline | Baseline + policy | Agent |
 |---|---:|---:|---:|---:|
-| Recovery rate (value) | 49.3% | **62.3%** | 56.5% | 57.8% |
-| Recovery rate (records) | 42.9% | **55.6%** | 50.0% | 52.4% |
-| Records paid | 54 | **70** | 63 | 66 |
-| Rs recovered | Rs 1,24,60,148.75 | **Rs 1,57,71,226.15** | Rs 1,43,03,667.23 | Rs 1,46,10,185.33 |
-| Contacts made | **0** | 459 | 161 | 157 |
-| Payment links sent | **0** | 225 | 56 | 71 |
+| Recovery rate (value) | 49.2% | **62.3%** | 56.5% | 56.7% |
+| Recovery rate (records) | 42.9% | **55.6%** | 50.0% | 50.8% |
+| Records paid | 54 | **70** | 63 | 64 |
+| Rs recovered | Rs 1,24,60,148.75 | **Rs 1,57,71,226.15** | Rs 1,43,03,667.23 | Rs 1,43,47,473.31 |
+| Contacts made | **0** | 459 | 161 | 137 |
+| Payment links sent | **0** | 225 | 56 | 61 |
 | **False interventions** | **0** | 104 | 23 | 23 |
 | - disputed invoices | **0** | 76 | 8 | 8 |
 | - already paid / unreconciled | **0** | 28 | 15 | 15 |
-| Policy vetoes | bypassed | bypassed | 247 merchant / 0 regulatory | 223 merchant / 8 regulatory |
-| Policy modifications | bypassed | bypassed | 16 | 16 |
-| Unresolved / written off | 72 / 0 | 37 / 19 | 63 / 0 | 60 / 0 |
+| Policy vetoes | bypassed | bypassed | 247 merchant / 0 regulatory | 266 merchant / 6 regulatory |
+| Policy modifications | bypassed | bypassed | 16 | 17 |
+| Unresolved / written off | 72 / 0 | 37 / 19 | 63 / 0 | 62 / 0 |
 
 Policy alone cuts the naive ladder's contacts by **64.9%** and false
 interventions by **77.9%**, at a 5.8-point value-recovery cost. With policy held
-constant, the agent proposer adds 3 paid records and 1.2 recovery points while
-using four fewer contacts. Its disputed-invoice contacts fall **76 → 8**; the
+constant, the agent proposer adds 1 paid record and 0.2 recovery points while
+using 24 fewer contacts -- 54 of which are the approved account-level
+suppression binding on the Suryodaya group. Its disputed-invoice contacts fall **76 → 8**; the
 remaining 15 already-paid/unreconciled contacts are not detectable from its
 snapshot.
 

@@ -268,9 +268,16 @@ def run_batch(
         insight = batch_reasoner.analyze(opening_snapshots, 0)
         batch_gate = cast(BatchPolicyGate, policy)
         batch_verdict = batch_gate.adjudicate_batch(insight, 0, ledger)
+        # Adjudicating decides whether the recommendation may bind; arming is
+        # what makes it reach a record. `applied_to_ledger` reports what the
+        # engine actually accepted, never what the model asked for.
+        applied = False
+        if hasattr(batch_gate, "arm_batch_suppression"):
+            applied = bool(batch_gate.arm_batch_suppression(insight, batch_verdict))
         result.batch_insight = BatchInsightResult(
             proposal=insight,
             policy_verdict=batch_verdict,
+            applied_to_ledger=applied,
         )
 
     # Intake. One row per record, carrying the opening snapshot, so that a
