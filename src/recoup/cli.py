@@ -8,10 +8,14 @@ the signatures are the thing being frozen, not the bodies.
 from __future__ import annotations
 
 import json
+import re
 from enum import StrEnum
 from pathlib import Path
 
 import typer
+
+#: A run id becomes a directory name, so it may not traverse or escape `runs/`.
+_SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 
 app = typer.Typer(
     add_completion=False,
@@ -95,6 +99,9 @@ def run(
     max_api_calls: int | None = typer.Option(
         None, help="Hard ceiling on model calls this run. Spend guard; unset means no ceiling."
     ),
+    run_id: str | None = typer.Option(
+        None, help="Override the run directory name. Use it to avoid overwriting canonical runs."
+    ),
 ) -> None:
     """Run the batch end to end and write runs/<id>/. (Phases 2-3)
 
@@ -148,7 +155,11 @@ def run(
     load_dotenv(dotenv_path=Path(".env"), override=False)
 
     batch = generate_batch(seed)
-    run_id = f"seed{seed}" if ticks == DEFAULT_TICKS else f"seed{seed}-t{ticks}"
+    if run_id is None:
+        run_id = f"seed{seed}" if ticks == DEFAULT_TICKS else f"seed{seed}-t{ticks}"
+    elif not _SAFE_RUN_ID.fullmatch(run_id):
+        typer.secho(f"unsafe run id: {run_id!r}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
     run_dir = Path("runs") / run_id
     metric_inputs = {}
     agent_reasoner = (
