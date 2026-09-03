@@ -34,7 +34,7 @@ deliberately deferred to the user.
 | 11 | Batch-level insight (§7b) — the cluster event. **Built in Phase 3; applied and rendered in Phase 6.** | 3 → 6 | 🟡 real model insight cached and policy-approved; Phase 6 application still pending |
 | 23 | Exercise the terminal path end to end (`STOP` → `EXHAUSTED` → write-off) so the bar's "stopping rules" is demonstrated, not just tested | 6 | ✅ done — `runs/seed42-t224/`, ISS-044, OBS-011 |
 | 14 | Seven submission-form answers drafted | 6 | ⬜ |
-| 15 | Five-minute video | 7 | ⬜ |
+| 15 | Five-minute video | 7 | 🟡 narration script drafted in `docs/VIDEO-SCRIPT.md`; recording is the user's |
 | 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ⬜ |
 | 22 | **Rule on `HARDSHIP_CLAIMED`** (OBS-002): either score it as a third false-intervention subtype or write down the decision that hardship contact is legitimate. | 6 | ⬜ assigned at the Phase 3 close |
 | 19 | Create the public GitHub repository and push | user decision | ⬜ local history and tag are ready |
