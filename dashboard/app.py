@@ -20,7 +20,7 @@ from dashboard.data import (
     load_arm,
     load_metrics,
 )
-from dashboard.theme import CSS
+from dashboard.theme import CSS, topbar
 from dashboard.views import audit, summary, timeline
 from recoup.policy.sources import ALL_SOURCES
 
@@ -54,8 +54,8 @@ def main() -> None:
         st.error(f"Run {preferred!r} has no metrics.json under {runs_root}.")
         st.stop()
 
-    st.sidebar.markdown("# recoup↗")
-    st.sidebar.caption("Revenue recovery with deterministic guardrails")
+    st.sidebar.markdown("# Recoup")
+    st.sidebar.caption("Receivables recovery · policy-gated")
     selected_run = st.sidebar.selectbox(
         "Evidence run",
         run_ids,
@@ -73,6 +73,7 @@ def main() -> None:
 
     try:
         if view == "Portfolio summary":
+            st.markdown(topbar(selected_run), unsafe_allow_html=True)
             metrics = load_metrics(runs_root, selected_run)
             cards = comparison_scorecards(runs_root, selected_run)
             summary.render(cards, metrics, ALL_SOURCES)
@@ -89,6 +90,7 @@ def main() -> None:
             index=arms.index(default_arm),
             format_func=lambda item: ARM_LABELS[item],
         )
+        st.markdown(topbar(selected_run, ARM_LABELS[arm]), unsafe_allow_html=True)
         artifact = load_arm(runs_root, selected_run, arm)
         if view == "Payer timeline":
             timeline.render(artifact)
