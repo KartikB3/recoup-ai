@@ -371,3 +371,114 @@ def check_razorpay(
 
 if __name__ == "__main__":
     app()
+
+
+class SeedSelection(StrEnum):
+    """Which tick-0 records a seeding pass is allowed to pay for."""
+
+    high_info = "high-info"
+    already_paid = "already-paid"
+    disputed_prose = "disputed-prose"
+    hardship = "hardship"
+
+
+@app.command("seed-cache")
+def seed_cache(
+    select: SeedSelection = typer.Option(
+        SeedSelection.high_info, help="Which held-out slice to seed at tick 0."
+    ),
+    seed: int = typer.Option(DEFAULT_SEED, help="RNG seed. Must match the run being seeded."),
+    confirm: bool = typer.Option(
+        False, "--confirm", help="Actually call the API. Without this the pass is a dry run."
+    ),
+    max_calls: int | None = typer.Option(
+        None, help="Hard ceiling on calls. Defaults to the number of uncached targets."
+    ),
+    cost_per_call: float = typer.Option(
+        0.021, help="USD per record call, for the projection only. Measure it, do not trust it."
+    ),
+) -> None:
+    """Seed the model cache for a named slice of tick-0 records. Dry run by default.
+
+    Selection uses the held-out flags, which is legitimate: choosing an
+    evaluation set is not the same as showing the model the answer. The
+    snapshot handed to the reasoner is the ordinary one and still excludes
+    `payer_archetype`, `flags`, `provenance` and `spotlight`.
+
+    Records already in the cache are skipped, so a repeated pass costs nothing.
+    """
+    from dotenv import load_dotenv
+
+    from recoup.domain.enums import CONTACT_INTERVENTIONS, Flag
+    from recoup.generator.generate import generate_batch
+    from recoup.ledger.clock import virtual_date
+    from recoup.reasoner.client import ClaudeReasoner
+    from recoup.reasoner.fallback import DeterministicFallback
+
+    load_dotenv(dotenv_path=Path(".env"), override=False)
+
+    wanted = {
+        SeedSelection.already_paid: {Flag.ALREADY_PAID_UNRECONCILED},
+        SeedSelection.disputed_prose: {Flag.DISPUTED},
+        SeedSelection.hardship: {Flag.HARDSHIP_CLAIMED},
+        SeedSelection.high_info: {
+            Flag.ALREADY_PAID_UNRECONCILED,
+            Flag.DISPUTED,
+            Flag.HARDSHIP_CLAIMED,
+        },
+    }[select]
+
+    ladder = DeterministicFallback()
+    as_of = virtual_date(0)
+    targets: list[tuple[str, dict[str, object]]] = []
+    for record in generate_batch(seed).records:
+        if not (set(record.flags) & wanted):
+            continue
+        if record.outstanding_paise <= 0:
+            continue  # never reviewed, so a cache entry could never be hit
+        snapshot = record.to_snapshot(as_of, 0)
+        free_text = record.free_text
+        if free_text.is_empty:
+            continue  # no prose means nothing the ladder cannot already see
+        if record.state.value == "DISPUTED" or free_text.dispute_description:
+            continue  # a structured tell the policy engine already acts on
+        if ladder.propose(snapshot, 0).intervention not in CONTACT_INTERVENTIONS:
+            continue  # the ladder does no harm here, so there is nothing to beat
+        targets.append((record.invoice_id, snapshot))
+
+    reasoner = ClaudeReasoner()
+    pending = [
+        (invoice_id, snapshot)
+        for invoice_id, snapshot in targets
+        if not reasoner.cache.path_for("records", snapshot).exists()
+    ]
+    ceiling = len(pending) if max_calls is None else min(max_calls, len(pending))
+
+    typer.echo(f"selection      {select.value}")
+    typer.echo(f"targets        {len(targets)}")
+    typer.echo(f"already cached {len(targets) - len(pending)}")
+    typer.echo(f"calls to make  {ceiling}")
+    typer.secho(f"projected cost ${ceiling * cost_per_call:.2f}", fg=typer.colors.YELLOW)
+    for invoice_id, _ in pending[:ceiling]:
+        typer.echo(f"  would call {invoice_id}")
+
+    if not confirm:
+        typer.secho("\ndry run. re-run with --confirm to spend.", fg=typer.colors.CYAN)
+        raise typer.Exit(code=0)
+    if not reasoner.api_key:
+        typer.secho("no ANTHROPIC_API_KEY configured; nothing to do.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    # The ceiling is enforced inside the reasoner too, so a bug in the loop
+    # above cannot turn into unbounded spend.
+    reasoner = ClaudeReasoner(max_api_calls=ceiling)
+    for invoice_id, snapshot in pending[:ceiling]:
+        proposal = reasoner.propose(snapshot, 0)
+        intervention = proposal.llm_proposal.intervention if proposal.llm_proposal else None
+        typer.echo(f"  {invoice_id}: {intervention}")
+
+    typer.secho(
+        f"\ncalls {reasoner.stats.api_calls}, cached {reasoner.cache.stats.writes}, "
+        f"fallbacks {reasoner.stats.fallbacks}",
+        fg=typer.colors.GREEN,
+    )
