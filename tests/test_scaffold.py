@@ -40,6 +40,13 @@ PLANNED_MODULES = [
     "recoup.executor.simulated",
     "recoup.executor.live_razorpay",
     "recoup.executor.budget",
+    # Phase 4 additions. The plan named the four above; these are the modules
+    # the live slice turned out to need, and they are pinned here for the same
+    # reason: five gates reference these paths by name.
+    "recoup.executor.fake_razorpay",
+    "recoup.executor.session",
+    "recoup.executor.signature",
+    "recoup.executor.reconcile",
     "recoup.audit.log",
     "recoup.audit.replay",
     "recoup.baseline.naive_chaser",
@@ -49,7 +56,16 @@ PLANNED_MODULES = [
 ]
 
 # Commands the plan's gates invoke by name.
-PLANNED_COMMANDS = ["generate", "run", "metrics", "replay", "dashboard", "check-razorpay"]
+PLANNED_COMMANDS = [
+    "generate",
+    "run",
+    "metrics",
+    "replay",
+    "dashboard",
+    "check-razorpay",
+    "webhook",
+    "reconcile",
+]
 
 
 @pytest.mark.parametrize("module", PLANNED_MODULES)

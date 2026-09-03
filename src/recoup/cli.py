@@ -132,6 +132,7 @@ def _run_live_agent_arm(
         RazorpayPaymentLinkClient,
     )
     from recoup.executor.session import write_session
+    from recoup.ledger.ledger import is_terminal
     from recoup.policy.context import MerchantPolicy
     from recoup.policy.engine import PolicyEngine
     from recoup.runner.batch import run_live_batch
@@ -200,9 +201,27 @@ def _run_live_agent_arm(
         f"allocated across {outcome.allocator.demand_size} records that requested one.",
         fg=typer.colors.GREEN,
     )
+
+    # Which of them a human can actually settle. A record the simulated payer
+    # already resolved is closed, and a webhook for it is refused -- correctly,
+    # because the rupees are already in the ledger. Over a full 112-tick
+    # horizon that is ALL of them; the round trip needs a run that closes while
+    # the funded receivables are still open. See ISS-039.
+    closing = {record.invoice_id: record.state for record in outcome.live.ledger.records}
+    payable = [link for link in executor.session.links if not is_terminal(closing[link.invoice_id])]
     for link in executor.session.links:
+        state = closing[link.invoice_id]
+        mark = "payable " if not is_terminal(state) else "settled  "
         typer.echo(
-            f"  {link.invoice_id}  tick {link.tick}  {link.payment_link_id}  {link.short_url}"
+            f"  {mark} {link.invoice_id}  tick {link.tick}  closed {state}  "
+            f"{link.payment_link_id}  {link.short_url}"
+        )
+    if not payable and granted:
+        typer.secho(
+            "none of these links is payable: every funded record was resolved inside the run, "
+            f"so a webhook for any of them is refused. Re-run with a shorter --ticks "
+            f"(the current run is {ticks}) to close the book while they are still open.",
+            fg=typer.colors.YELLOW,
         )
     for failure in executor.failures:
         typer.secho(f"  live call FAILED, row logged as simulated: {failure}", fg=typer.colors.RED)
@@ -489,6 +508,92 @@ def replay(
         typer.secho(f"{len(differences)} divergences", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
     typer.secho("replay matches the ledger", fg=typer.colors.GREEN)
+
+
+@app.command()
+def webhook(
+    port: int = typer.Option(8000, help="Port to serve on. Expose it with a tunnel."),
+    host: str = typer.Option("127.0.0.1", help="Bind address. Localhost; the tunnel reaches in."),
+    runs_root: Path = typer.Option(Path("runs"), help="Where live-link sessions are looked up."),
+) -> None:
+    """Serve the Razorpay webhook receiver. (Phase 4)
+
+    Pair it with a tunnel and point a dashboard webhook at
+    `<tunnel>/razorpay/webhook` for `payment_link.paid`:
+
+        recoup webhook
+        cloudflared tunnel --url http://localhost:8000
+    """
+    import os
+
+    import uvicorn
+
+    os.environ["RECOUP_RUNS_ROOT"] = str(runs_root)
+    if not os.environ.get("RAZORPAY_WEBHOOK_SECRET", ""):
+        # Serve anyway -- the endpoint refuses every request with 503 and says
+        # why, which is a better thing to discover now than mid-recording.
+        typer.secho(
+            "RAZORPAY_WEBHOOK_SECRET is not set. The receiver will refuse every delivery "
+            "until it is: set it to the secret you chose in the Razorpay dashboard.",
+            fg=typer.colors.YELLOW,
+            err=True,
+        )
+    typer.secho(f"webhook receiver on http://{host}:{port}", fg=typer.colors.GREEN)
+    uvicorn.run("webhook.app:app", host=host, port=port, log_level="info")
+
+
+@app.command()
+def reconcile(
+    payload: Path = typer.Argument(..., help="A saved Razorpay webhook payload, as JSON."),
+    runs_root: Path = typer.Option(Path("runs"), help="Where live-link sessions are looked up."),
+) -> None:
+    """Apply a saved `payment_link.paid` payload to the ledger. (Phase 4)
+
+    The offline half of the webhook, and the reason the receiver needs no
+    network to be exercised: the same reconciliation, driven from a payload on
+    disk. Use it to replay a delivery that arrived while the tunnel was down,
+    or to rehearse the round trip without spending a link.
+    """
+    from recoup.executor.reconcile import ReconcileRefused, reconcile_payment
+    from recoup.executor.session import find_link
+
+    event = json.loads(payload.read_text(encoding="utf-8"))
+    body = event.get("payload", {})
+    link_entity = body.get("payment_link", {}).get("entity", {})
+    payment_entity = body.get("payment", {}).get("entity", {})
+    payment_link_id = str(link_entity.get("id", ""))
+
+    located = find_link(runs_root, payment_link_id)
+    if located is None:
+        typer.secho(
+            f"no run under {runs_root} created payment link {payment_link_id!r}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1)
+    arm_dir, _session, link = located
+
+    try:
+        result = reconcile_payment(
+            arm_dir,
+            invoice_id=link.invoice_id,
+            payment_id=str(payment_entity.get("id", "")),
+            payment_link_id=payment_link_id,
+            amount_paise=int(payment_entity.get("amount") or link_entity.get("amount_paid") or 0),
+            received_at=str(event.get("created_at", "")),
+        )
+    except ReconcileRefused as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+
+    verb = "already applied" if result.already_applied else "reconciled"
+    typer.secho(
+        f"{verb}: {result.invoice_id} {result.state_before} -> {result.state_after}, "
+        f"{result.amount_paise} paise, audit row {result.row_id}",
+        fg=typer.colors.GREEN,
+    )
+    # Replay is keyed by run AND arm, because each arm has its own log.
+    typer.echo(f"verify with: recoup replay {result.run_id}/{arm_dir.name}")
 
 
 @app.command()

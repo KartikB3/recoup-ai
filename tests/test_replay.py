@@ -65,7 +65,14 @@ def result(request: pytest.FixtureRequest) -> RunResult:
 #: must be classified here deliberately, which is the point: the equality check
 #: below is a tripwire, and the thing it protects is that `append` stays the
 #: only way a row comes into existence.
-NON_MUTATING_LOG_METHODS: frozenset[str] = frozenset({"write"})
+#:
+#: `resume` is a CONSTRUCTOR, classified here after being weighed against the
+#: invariant rather than waved through. It builds a log around rows already
+#: written, verifying the chain first, so that the Phase 4 webhook can add a
+#: payment outcome to the run that earned it. It changes no row it is given --
+#: the new outcome still arrives through `append`, as invariant 5 has always
+#: said outcomes do.
+NON_MUTATING_LOG_METHODS: frozenset[str] = frozenset({"write", "resume"})
 
 
 def test_the_log_has_no_writer_other_than_append() -> None:

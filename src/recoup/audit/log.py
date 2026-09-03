@@ -84,6 +84,27 @@ class AuditLog:
         self._rows: list[AuditRow] = []
         self._last_hash: str = GENESIS_HASH
 
+    @classmethod
+    def resume(cls, rows: list[AuditRow]) -> AuditLog:
+        """Continue a log read back from disk, so a later event can be appended.
+
+        The Phase 4 webhook is why this exists. A payer settles a real payment
+        link after the run has finished, and that outcome belongs in the same
+        log as the decision that sent the link -- as a NEW row, which is what
+        invariant 5 has always said outcomes are. Reconstructing the chain here
+        rather than in the reconciler keeps every `prev_row_hash` in this file.
+
+        Verifies before continuing: appending to a log whose chain is already
+        broken would bury the break under a valid-looking row.
+        """
+        if not rows:
+            raise ValueError("cannot resume an empty log")
+        verify_chain(rows)
+        log = cls(rows[0].run_id, rows[0].arm)
+        log._rows = list(rows)
+        log._last_hash = row_hash(rows[-1])
+        return log
+
     def __len__(self) -> int:
         return len(self._rows)
 

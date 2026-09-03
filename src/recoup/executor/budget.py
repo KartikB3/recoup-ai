@@ -21,12 +21,19 @@ metric table describes, and demand could only be guessed at.
 Why the shortlist comes from a dry run
 --------------------------------------
 Which records will ask for a payment link is not knowable when the book opens,
-and guessing is measurably terrible. The three largest receivables in the
-seed-42 book never request one: two are escalated to a human at tick 0 (one for
-a visible dispute) and the third pays after a single reminder. A shortlist of
-"the three biggest invoices" therefore reserves the entire budget for records
-that never spend it, and the run creates **zero** real links -- measured, not
-supposed.
+and guessing is measurably terrible. Take the obvious shortlist -- the three
+biggest invoices, chosen at intake -- and run the seed-42 book against the fake
+client:
+
+  * Under the **cost-tiered agent**, the arm that actually goes live, none of
+    the three ever requests a link. Two are escalated to a human at tick 0, one
+    of those for a visible dispute, and the third settles after a single
+    reminder. The run creates **zero** real links.
+  * Under the **Phase 2 deterministic ladder**, one of the three requests one,
+    so two thirds of the budget still goes unspent.
+
+Measured, not supposed; `tests/test_executor.py` pins both numbers so that a
+later change to either proposer cannot quietly invalidate this paragraph.
 
 So demand is revealed rather than predicted. The run is deterministic and the
 executor does not influence any decision, so running the arm with the simulated
