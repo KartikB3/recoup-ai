@@ -165,6 +165,12 @@ already-`PAID` invoice is refused — correctly, because the rupees are already 
 the ledger. At 24 ticks two of the three funded links are still payable. This is
 [ISS-039](docs/ISSUES.md), and it is the reason the CLI labels them.
 
+You do not have to remember that. A `--confirm` run checks it **before creating
+anything** and refuses outright if no funded record would still be open, because
+the links are capped at 30 for the account and are not recoverable. It also
+refuses if `RAZORPAY_CALLBACK_BASE_URL` is unset or still the placeholder, which
+would otherwise send the payer's browser nowhere after they paid.
+
 To do it for real:
 
 ```bash
@@ -191,6 +197,13 @@ recoup replay live-demo/agent      # the log must still reproduce the ledger
 `recoup reconcile <payload.json>` applies a saved `payment_link.paid` delivery
 offline — for a webhook that arrived while the tunnel was down, or to rehearse
 the reconciliation without spending anything.
+
+Two operational notes. A reconciliation moves recovery, so regenerate the run's
+metric table with `recoup metrics <id>` afterwards — it is what the dashboard
+reads. And a retried `--confirm` run needs a **fresh `--run-id`**: payment-link
+reference ids are deterministic in `(run_id, invoice_id, tick)` and unique per
+Razorpay account, so a second attempt under the same id collides on every create
+and produces nothing. No budget is burned when that happens.
 
 The receiver refuses every delivery it cannot verify, refuses to write to
 `runs/seed42/` or `runs/seed42-tiered/` at all, and is idempotent: the Razorpay

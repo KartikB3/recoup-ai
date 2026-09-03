@@ -497,6 +497,32 @@ def _apply_outcome(
     )
 
 
+class NoPayableLink(RuntimeError):
+    """Every record the budget would fund is already closed. Raised BEFORE spending.
+
+    The simulated payer resolves records as the run proceeds, so on a long
+    horizon it settles every funded receivable itself and a real payment has
+    nothing to land on -- the webhook would be refused, correctly, because the
+    rupees are already in the ledger. Over the canonical 112 ticks that is ALL
+    of them (ISS-039).
+
+    Raised between the two passes, so a live run refuses to create real
+    Razorpay objects it already knows nobody can pay. The links are capped at
+    30 for the account and are not recoverable, which is why this is a refusal
+    and not a warning printed afterwards.
+    """
+
+    def __init__(self, horizon: int, shortlist: list[str]) -> None:
+        super().__init__(
+            f"every record the live budget would fund is already closed at tick {horizon}: "
+            f"{', '.join(shortlist) or 'none were shortlisted'}. The simulated payer settles "
+            "them before a real one could. Re-run with a shorter --ticks so the book closes "
+            "while the funded receivables are still open. See ISS-039."
+        )
+        self.horizon = horizon
+        self.shortlist = shortlist
+
+
 class LiveRunDivergence(RuntimeError):
     """The live pass did not make the same decisions as the pass it was planned from."""
 
@@ -558,6 +584,7 @@ def run_live_batch(
     policy_factory: Callable[[], PolicyGate] | None = None,
     horizon: int = DEFAULT_HORIZON,
     batch_reasoner: BatchReasoner | None = None,
+    require_payable: bool = False,
 ) -> LiveRunOutcome:
     """Run the arm twice: once to reveal demand, once for real. Phase 4.
 
@@ -577,6 +604,12 @@ def run_live_batch(
     Both passes get a FRESH policy engine, because `PolicyEngine` carries
     per-run link accounting and a reused one would enter the live pass with the
     dry pass's counters already spent.
+
+    `require_payable` raises `NoPayableLink` between the passes when every
+    record the budget would fund has already closed. Set it whenever the second
+    pass will create real objects: the links are capped and irrecoverable, so
+    "you have just spent three of them on invoices nobody can pay" has to be
+    something the run says BEFORE it spends them, not after.
     """
     dry = run_batch(
         records,
@@ -589,6 +622,25 @@ def run_live_batch(
         batch_reasoner=batch_reasoner,
     )
     allocator = LinkAllocator(demand_from_log(dry.log.rows), capacity)
+
+    # Pre-flight, and the ONLY thing standing between a mistyped horizon and
+    # three irrecoverable test-mode links. The dry pass already holds the
+    # closing ledger, so whether any funded record will still be open when a
+    # human tries to pay it is knowable BEFORE a single real object exists.
+    #
+    # This is not the thing ISS-039 rejected. Simulated outcomes still play no
+    # part in choosing WHO is funded -- that would be selecting on the answer
+    # key -- and the shortlist here is already final. All this decides is
+    # whether to spend at all.
+    if require_payable:
+        payable = [
+            allocation.invoice_id
+            for allocation in allocator.shortlist
+            if not is_terminal(dry.ledger.get(allocation.invoice_id).state)
+        ]
+        if not payable:
+            raise NoPayableLink(horizon, [a.invoice_id for a in allocator.shortlist])
+
     live = run_batch(
         records,
         proposer,

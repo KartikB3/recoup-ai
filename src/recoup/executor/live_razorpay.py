@@ -74,6 +74,12 @@ def reference_id(run_id: str, invoice_id: str, tick: Tick) -> str:
     decision in the same run collides at Razorpay rather than silently making a
     second object -- which is the behaviour you want from an id that is also an
     idempotency key.
+
+    The operational half of that, because it will bite someone otherwise: a
+    second `--confirm` run under a run id that already reached the API collides
+    on every create, and produces no links at all. No budget is burned -- a unit
+    is committed only once an object exists -- but a real retry needs a fresh
+    `--run-id`. The CLI says so when every call fails.
     """
     digest = hashlib.blake2b(run_id.encode("utf-8"), digest_size=16).hexdigest()
     return f"{invoice_id}-t{tick}-{digest[:REFERENCE_DIGEST_CHARS]}"

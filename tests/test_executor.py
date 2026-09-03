@@ -35,11 +35,16 @@ from recoup.reasoner.client import ClaudeReasoner
 from recoup.reasoner.fallback import DeterministicFallback
 from recoup.runner.batch import (
     LiveRunDivergence,
+    NoPayableLink,
     assert_same_decisions,
     run_batch,
     run_live_batch,
     write_run,
 )
+
+#: States a real payment can no longer land on. See ISS-039.
+TERMINAL = (RecordState.PAID, RecordState.WRITTEN_OFF)
+
 
 # --------------------------------------------------------------------------
 # the protocol change: LIVE must mean "a Razorpay object exists for this row"
@@ -480,3 +485,92 @@ def test_a_live_run_writes_a_replayable_run_directory(tmp_path: Path) -> None:
     stored = json.loads((arm_dir / "final.json").read_text(encoding="utf-8"))
     assert len(stored) == 126
     assert any(item["state"] == RecordState.PAID.value for item in stored)
+
+
+# --------------------------------------------------------------------------
+# the pre-flight refusal: never spend a capped, irrecoverable resource blind
+# --------------------------------------------------------------------------
+
+
+def _live_run_with(run_id: str, capacity: int, horizon: int, *, require_payable: bool) -> Any:
+    client = FakePaymentLinkClient()
+    executors: list[LiveRazorpayExecutor] = []
+
+    def build(allocator: LinkAllocator) -> LiveRazorpayExecutor:
+        executor = LiveRazorpayExecutor(
+            client,
+            allocator,
+            run_id=run_id,
+            arm=Arm.AGENT,
+            key_id="rzp_test_offline",
+        )
+        executors.append(executor)
+        return executor
+
+    outcome = run_live_batch(
+        generate_batch(42).records,
+        DeterministicFallback(),
+        seed=42,
+        run_id=run_id,
+        capacity=capacity,
+        executor_factory=build,
+        policy_factory=lambda: PolicyEngine(MerchantPolicy(link_budget=None)),
+        horizon=horizon,
+        require_payable=require_payable,
+    )
+    return outcome, client
+
+
+def test_a_spending_run_refuses_before_creating_unpayable_links() -> None:
+    """The default horizon settles every funded record, so it must not spend.
+
+    `--ticks` defaults to 112, and at 112 the simulated payer has closed all
+    three funded receivables by the time anyone could pay one. Without this
+    check a `--confirm` run would create three real links, consume three of a
+    capped and irrecoverable 30, and only then report that none was payable.
+    """
+    with pytest.raises(NoPayableLink) as raised:
+        _live_run_with("preflight", 3, 112, require_payable=True)
+    assert "shorter --ticks" in str(raised.value)
+    assert raised.value.horizon == 112
+
+
+def test_the_refusal_happens_before_any_link_is_created() -> None:
+    """A refusal after the spend would be worthless. Assert the ordering."""
+    client = FakePaymentLinkClient()
+
+    def build(allocator: LinkAllocator) -> LiveRazorpayExecutor:
+        return LiveRazorpayExecutor(
+            client, allocator, run_id="order", arm=Arm.AGENT, key_id="rzp_test_offline"
+        )
+
+    with pytest.raises(NoPayableLink):
+        run_live_batch(
+            generate_batch(42).records,
+            DeterministicFallback(),
+            seed=42,
+            run_id="order",
+            capacity=3,
+            executor_factory=build,
+            policy_factory=lambda: PolicyEngine(MerchantPolicy(link_budget=None)),
+            horizon=112,
+            require_payable=True,
+        )
+    assert client.calls == [], "links were created before the run refused to spend"
+
+
+def test_a_short_horizon_leaves_links_payable_and_is_allowed() -> None:
+    """24 ticks closes the book while two of the three funded records are open."""
+    outcome, client = _live_run_with("payable", 3, 24, require_payable=True)
+    closing = {record.invoice_id: record.state for record in outcome.live.ledger.records}
+    funded = [allocation.invoice_id for allocation in outcome.allocator.shortlist]
+    payable = [invoice_id for invoice_id in funded if closing[invoice_id] not in TERMINAL]
+    assert len(client.calls) == 3
+    assert len(payable) == 2
+
+
+def test_a_rehearsal_is_never_refused() -> None:
+    """Costing nothing, it stays useful on any horizon -- it shows the allocation."""
+    outcome, client = _live_run_with("rehearse", 3, 112, require_payable=False)
+    assert len(client.calls) == 3
+    assert len(outcome.allocator.shortlist) == 3

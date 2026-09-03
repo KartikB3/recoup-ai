@@ -135,7 +135,7 @@ def _run_live_agent_arm(
     from recoup.ledger.ledger import is_terminal
     from recoup.policy.context import MerchantPolicy
     from recoup.policy.engine import PolicyEngine
-    from recoup.runner.batch import run_live_batch
+    from recoup.runner.batch import NoPayableLink, run_live_batch
 
     key_id = os.environ.get("RAZORPAY_KEY_ID", "")
     callback_base = os.environ.get("RAZORPAY_CALLBACK_BASE_URL", "").rstrip("/")
@@ -143,6 +143,22 @@ def _run_live_agent_arm(
 
     client: PaymentLinkClient
     if confirm:
+        # Checked before a link exists. `.invalid` is the reserved never-resolves
+        # TLD that `.env.example` ships as a placeholder, so an unconfigured
+        # tunnel would either have the create rejected or send the payer's
+        # browser to a dead host after paying -- and the links are gone either
+        # way. Refusing costs nothing; discovering it costs three of thirty.
+        if not callback_base or ".invalid" in callback_base:
+            typer.secho(
+                "RAZORPAY_CALLBACK_BASE_URL is "
+                f"{'not set' if not callback_base else 'still the placeholder'}, so the payer "
+                "would be redirected nowhere after paying. Start a tunnel "
+                "(cloudflared tunnel --url http://localhost:8000) and set it to that URL "
+                "before spending real links.",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1)
         try:
             real = RazorpayPaymentLinkClient(key_id, os.environ.get("RAZORPAY_KEY_SECRET", ""))
         except ValueError as exc:
@@ -150,7 +166,8 @@ def _run_live_agent_arm(
             raise typer.Exit(code=1) from exc
         client = real
         typer.secho(
-            f"LIVE: creating up to {capacity} real test-mode payment links on {key_id}.",
+            f"LIVE mode on {key_id}: up to {capacity} real test-mode payment links may be "
+            "created, once the pre-flight checks pass.",
             fg=typer.colors.YELLOW,
         )
     else:
@@ -176,17 +193,25 @@ def _run_live_agent_arm(
         executors.append(executor)
         return executor
 
-    outcome = run_live_batch(
-        batch.records,
-        proposer,
-        seed=seed,
-        run_id=run_id,
-        capacity=capacity,
-        executor_factory=build,
-        policy_factory=lambda: PolicyEngine(MerchantPolicy(link_budget=None)),
-        horizon=ticks,
-        batch_reasoner=batch_reasoner,
-    )
+    try:
+        outcome = run_live_batch(
+            batch.records,
+            proposer,
+            seed=seed,
+            run_id=run_id,
+            capacity=capacity,
+            executor_factory=build,
+            policy_factory=lambda: PolicyEngine(MerchantPolicy(link_budget=None)),
+            horizon=ticks,
+            batch_reasoner=batch_reasoner,
+            # Only a spending run refuses. A rehearsal is still worth running on
+            # a long horizon -- it shows the allocation -- and costs nothing.
+            require_payable=confirm,
+        )
+    except NoPayableLink as exc:
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        typer.secho("no links were created.", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
 
     executor = executors[-1]
     arm_dir.mkdir(parents=True, exist_ok=True)
@@ -225,6 +250,17 @@ def _run_live_agent_arm(
         )
     for failure in executor.failures:
         typer.secho(f"  live call FAILED, row logged as simulated: {failure}", fg=typer.colors.RED)
+    if executor.failures and not granted:
+        # `reference_id` is deterministic in (run_id, invoice_id, tick) and
+        # Razorpay requires it unique per account, so re-running a spending
+        # attempt under a run id that already reached the API collides on every
+        # create. No budget is burned -- a unit is committed only once an object
+        # exists -- but the retry produces nothing until the id changes.
+        typer.secho(
+            "every live call failed. If this run id has been confirmed before, its "
+            "reference ids already exist at Razorpay: retry with a fresh --run-id.",
+            fg=typer.colors.RED,
+        )
     if confirm and granted:
         typer.secho(
             f"{granted} unit(s) of the 30-link test-mode budget consumed. "
@@ -592,8 +628,14 @@ def reconcile(
         f"{result.amount_paise} paise, audit row {result.row_id}",
         fg=typer.colors.GREEN,
     )
-    # Replay is keyed by run AND arm, because each arm has its own log.
-    typer.echo(f"verify with: recoup replay {result.run_id}/{arm_dir.name}")
+    # Replay is keyed by run AND arm, because each arm has its own log. The
+    # run-root metric table is derived from final.json and audit.jsonl, so it
+    # is stale until recomputed -- and it is what the dashboard and the video
+    # read.
+    typer.echo(
+        f"verify with: recoup replay {result.run_id}/{arm_dir.name} "
+        f"&& recoup metrics {result.run_id}"
+    )
 
 
 @app.command()

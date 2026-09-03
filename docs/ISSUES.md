@@ -667,7 +667,13 @@ that hold a live link. It is wrong twice over: outcomes drive contact counts and
 therefore later decisions, so the live run would stop being the run the metric
 table describes; and choosing records the simulation will not settle is
 selecting on the answer key.
-**Design consequence:** Two, both small and both honest. The reconciler refuses
+**Design consequence:** Three, all small and all honest. A spending run
+**refuses before it spends**: `run_live_batch(require_payable=True)` checks the
+dry pass's closing ledger between the two passes and raises `NoPayableLink` if
+no funded record will still be open, so the default 112-tick horizon can no
+longer consume three irrecoverable links and report afterwards that none of them
+was payable. A rehearsal is never refused — it costs nothing and still shows the
+allocation. The reconciler refuses
 a payment onto a terminal record and says why, rather than silently adding money
 to a written-off or already-paid invoice — the specific bug is that
 `Ledger.record_outcome` adds money *before* transitioning while
