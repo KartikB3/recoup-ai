@@ -17,23 +17,28 @@ from __future__ import annotations
 from recoup.domain.enums import ExecutorKind, Intervention
 from recoup.domain.interventions import spec
 from recoup.domain.models import Invoice, Tick
+from recoup.executor.base import NOT_EXECUTED, ExecutionResult
 
 
 class SimulatedExecutor:
     """Performs nothing outside the process. Satisfies `Executor`."""
 
-    kind: ExecutorKind = ExecutorKind.SIMULATED
-
     def __init__(self, run_id: str) -> None:
         self.run_id = run_id
 
-    def perform(self, record: Invoice, intervention: Intervention, tick: Tick) -> str | None:
+    def perform(self, record: Invoice, intervention: Intervention, tick: Tick) -> ExecutionResult:
         """Mint a deterministic reference for actions that produce an artifact.
 
         Only the payment link produces something a merchant could later look
         up, so only it gets a reference. A reminder that returns an id would
         imply an object exists somewhere, and nothing in a simulated run does.
+
+        The kind is always SIMULATED, which is what the whole four-arm
+        comparison rests on: none of it touched an external system.
         """
         if not spec(intervention).api_units:
-            return None
-        return f"sim_link_{self.run_id}_{record.invoice_id}_{tick}"
+            return NOT_EXECUTED
+        return ExecutionResult(
+            kind=ExecutorKind.SIMULATED,
+            external_ref=f"sim_link_{self.run_id}_{record.invoice_id}_{tick}",
+        )

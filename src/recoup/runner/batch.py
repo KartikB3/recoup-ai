@@ -67,7 +67,7 @@ from recoup.domain.models import (
     Tick,
     canonical_json,
 )
-from recoup.executor.base import Executor
+from recoup.executor.base import NOT_EXECUTED, Executor
 from recoup.executor.simulated import SimulatedExecutor
 from recoup.generator.generate import Batch, serialise
 from recoup.ledger.adjudicator import Adjudicator
@@ -431,10 +431,17 @@ def _take_decisions(
         contacts_at_send = ledger.payer_contacts_since(
             record.payer_id, max(0, tick - CONTACT_WINDOW_TICKS)
         )
-        external_ref = executor.perform(record, final, tick) if details.is_contact else None
+        # The executor is asked only about actions that reach the payer, and it
+        # reports per action whether anything actually left the process. A
+        # WAIT, a STOP or an escalation never had an outside-world half, so it
+        # keeps the SIMULATED default rather than inheriting the executor's
+        # kind -- see `executor.base` on why the kind travels with the result.
+        execution = executor.perform(record, final, tick) if details.is_contact else NOT_EXECUTED
 
         action = ledger.record_action(record, final, tick, executed=True)
-        action = action.model_copy(update={"executor": executor.kind, "external_ref": external_ref})
+        action = action.model_copy(
+            update={"executor": execution.kind, "external_ref": execution.external_ref}
+        )
         result.contacts += action.contact_units
         result.api_units += action.api_units
 
