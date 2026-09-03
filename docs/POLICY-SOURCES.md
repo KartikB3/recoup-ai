@@ -162,29 +162,39 @@ asserts it over every rule.
 | 10 | `link-budget` | MERCHANT | MODIFY → `SOFT_REMINDER` | The run's global payment-link budget is spent. |
 | 11 | `high-value-escalation` | MERCHANT | MODIFY → `ESCALATE_HUMAN` | Automation proposes to `STOP` on a record above the escalation threshold. |
 
-### Aggregate rule (outside the per-record order)
+### The aggregate decision, and how it binds
 
-Phase 3 adds `batch-cluster-suppression`, a merchant-configured validation for
-the separate portfolio insight. It does not join `RULE_ORDER`: it evaluates one
-aggregate recommendation before the per-record loop rather than competing for
-first-veto position with invoice rules.
+The portfolio insight is adjudicated outside `RULE_ORDER`. `adjudicate_batch`
+evaluates one aggregate recommendation before the per-record loop rather than
+competing for first-veto position with invoice rules.
 
-The rule approves suppression only when every named invoice exists, is still
-open, belongs to the one named parent group, covers that group's complete open
-scope, and spans at least three invoices and three distinct payers. Approval
-resolves to the existing `ESCALATE_HUMAN` intervention; the model cannot invent
-a seventh action. The Phase 3 artifact records approval and explicitly records
-`applied_to_ledger: false` until the planned Phase 6 end-to-end wiring.
+It approves suppression only when every named invoice exists, is still open,
+belongs to the one named parent group, covers that group's complete open scope,
+and spans at least three invoices and three distinct payers. Approval resolves
+to the existing `ESCALATE_HUMAN` intervention; the model cannot invent a
+seventh action.
+
+Applying it is a second and deliberately separate step. `adjudicate_batch`
+decides whether a recommendation is *allowed*; `arm_batch_suppression` is the
+runner asking for it to be *applied*. A caller therefore cannot apply something
+the engine refused, and `applied_to_ledger` reports what the engine accepted
+rather than what the model asked for. Once armed, the decision reaches
+individual records through rule 3 above, `batch-cluster-suppression`, so every
+suppressed contact carries a rule id and a reason in the audit log instead of
+vanishing (ISS-045).
 
 **Why this order.** Rules 1–2 are about the record itself and produce the most
 explanatory reason a reader could be given, so they run first — for a disputed
 invoice contacted at 20:00, "this invoice is disputed" is a better answer than
-"wrong hour". Rules 3–5 are the regulatory contact constraints. Rules 6–7 are
-merchant frequency. Rules 8–9 are budget downgrades, which cannot un-fire
-anything above them because a downgrade is still a contact. Rule 10 is last
-because it only ever looks at `STOP`, which no earlier rule inspects.
+"wrong hour". Rule 3 applies an already-approved account-level decision, and
+sits after `visible-dispute` so an invoice with its own dispute is routed on its
+own merits rather than absorbed into a group one. Rules 4–6 are the regulatory
+contact constraints. Rules 7–8 are merchant frequency. Rules 9–10 are budget
+downgrades, which cannot un-fire anything above them because a downgrade is
+still a contact. Rule 11 is last because it only ever looks at `STOP`, which no
+earlier rule inspects.
 
-**Deferral.** Rules 3, 4, 6 and 7 are "not now", not "no" — so their verdict
+**Deferral.** Rules 4, 5, 7 and 8 are "not now", not "no" — so their verdict
 carries `defer_to_tick`, and the runner sets the record's next review to that
 tick instead of the intervention's usual interval. Without it a record vetoed
 at 20:00 would be re-reviewed a whole number of days later, land on 20:00

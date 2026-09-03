@@ -20,8 +20,8 @@ $2.09. The cost-tiered arm in `runs/seed42-tiered/` cuts scored false
 interventions **23 → 0** for 2.63 recovery points, and still reproduces byte for
 byte after the Phase 4 executor change. The four canonical `runs/seed42/` arms
 are untouched. The full-book model arm was deliberately not bought (ISS-038,
-OBS-008). `v0.1-submittable` remains untouched. The public push remains
-deliberately deferred to the user.
+OBS-008). `v0.1-submittable` remains untouched, and is now pushed to `origin`
+alongside `main`.
 
 ---
 

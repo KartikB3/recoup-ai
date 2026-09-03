@@ -93,7 +93,7 @@ replacement for the deterministic agent column.
 
 **Invariant 7 remains load-bearing.** The shipped RBI and TRAI sources are verified and must not be weakened; RBI e-mandate claims remain unverified P1 work and must not enter the product unless the mandate lane ships and the issuing-body source is read.
 
-**Not done, deliberately:** the public GitHub push. It is the user's call. Nothing in Phases 2–6 depends on it; the submission does.
+**Done:** the public GitHub push. `main` and the `v0.1-submittable` tag are on `origin` (github.com/KartikB3/recoup-ai). Keep it current — the submission points at it. `.env`, `chat_history.txt` and `docs/research/` stay gitignored and must never be pushed.
 
 **Not done, and it is the gate:** the one live Razorpay round trip. Everything
 it needs is built and rehearsed against a fake client; it needs a tunnel, a

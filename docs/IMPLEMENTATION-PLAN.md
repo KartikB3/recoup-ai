@@ -16,7 +16,7 @@ must never be relabelled as an LLM result. The full-book model arm was
 deliberately not bought: see ISS-038 and OBS-008 — the recovery column cannot
 reward correct escalation, so that number would be a verdict on the simulation
 rather than the reasoner. `v0.1-submittable` remains the untouched recoverable
-floor. The public push is still deferred to the user.
+floor. The public push is done: `main` and `v0.1-submittable` are on `origin`.
 
 **Phase 4** shipped the live slice: an `ExecutionResult` that makes `LIVE` mean
 "a Razorpay object exists for this row", a link allocator that funds the largest
