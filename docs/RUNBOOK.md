@@ -93,17 +93,65 @@ this up. Stop it, start it again, and re-check:
 curl https://<host>/healthz     # webhook_secret_configured must now be true
 ```
 
-### 6 · Exercise the signed path without spending a link (if the dashboard offers it)
+### 6 · Prove the signed path end to end, without Razorpay and without a link
 
-If the webhook UI has a test-send, or a redelivery on an earlier event, use it.
-Read the response you get back, because the two failure shapes mean different
-things:
+Do not wait for a real event to test this. The webhook UI has no dependable
+test-send, and its delivery log has nothing to redeliver until step 8 has
+already spent the links — which is exactly backwards. Sign a payload yourself
+instead: `verify_webhook_signature` is a hex HMAC-SHA256 over the raw body with
+the shared secret, so the receiver cannot tell your probe from Razorpay's.
 
-- **401 `signature verification failed`** — the secret in `.env` and the secret
-  in the dashboard disagree. Fix it before step 8.
-- **A refusal that names the payment link** — signature verification *passed*
-  and reconciliation could not find a session for that link id. Expected for a
-  synthetic payload, and it is the result you want here.
+Save this as `probe.py` **outside the repo** and run it with the tunnel host:
+
+```python
+import hashlib, hmac, json, sys, urllib.request
+from dotenv import dotenv_values
+
+# Read the secret from .env rather than the command line, so it stays out of
+# shell history and off camera.
+secret = dotenv_values(".env")["RAZORPAY_WEBHOOK_SECRET"]
+body = json.dumps({
+    "event": "payment_link.paid",
+    "created_at": 0,
+    "payload": {
+        "payment_link": {"entity": {"id": "plink_probe_not_a_real_link"}},
+        "payment": {"entity": {"id": "pay_probe", "amount": 1}},
+    },
+}).encode()
+req = urllib.request.Request(
+    sys.argv[1].rstrip("/") + "/razorpay/webhook",
+    data=body,
+    headers={
+        "Content-Type": "application/json",
+        "X-Razorpay-Signature": hmac.new(
+            secret.encode(), body, hashlib.sha256
+        ).hexdigest(),
+    },
+)
+try:
+    with urllib.request.urlopen(req) as r:
+        print(r.status, r.read().decode())
+except urllib.error.HTTPError as e:
+    print(e.code, e.read().decode())
+```
+
+```bash
+uv run python probe.py https://<host>
+```
+
+Two outcomes, and they mean opposite things:
+
+- **`404 no run under runs created payment link plink_probe_not_a_real_link`** —
+  this is the **pass**. Signature verification succeeded and reconciliation
+  correctly refused a link no run created. Tunnel, secret and signature path are
+  all proved.
+- **`401 signature verification failed`** — the secret in `.env` and the secret
+  in the dashboard disagree, or terminal 1 was not restarted after step 5. Fix
+  it before step 8.
+- **`503`** — the receiver has no secret at all. Step 5 did not take.
+
+Both responses above were confirmed against this receiver offline; they are the
+literal strings it returns.
 
 ### 7 · Rehearse once more, now that the callback URL is real
 
@@ -120,9 +168,12 @@ python -c "import json;print(json.load(open('runs/live-rehearsal-2/agent/summary
 # rehearsal
 ```
 
-Expect three rows: two `payable`, one `settled`. The `settled` one is a record
-the simulation already closed — **do not pay that link**, the receiver will
-correctly refuse it (ISS-039).
+Expect three rows — `ASH-2026-0011` and `ASH-2026-0035` marked **`payable`**,
+`ASH-2026-0051` marked `settled`. That allocation was confirmed with a
+real-shaped callback base set, so a working tunnel URL does not change it; only
+the `plink_` ids differ between runs, because the fake derives them from the
+run id. **Do not pay the `settled` link** — the simulation already closed that
+record and the receiver will correctly refuse the delivery (ISS-039).
 
 ### 8 · The take
 
@@ -141,9 +192,11 @@ in `(run_id, invoice_id, tick)` and unique per Razorpay account, so a re-run of
 
 ### 9 · Pay one, watch it land
 
-Open the `short_url` of a row printed as **`payable`**. Pay on the mock page
-with a test card — the page lists them; `4111 1111 1111 1111` with any future
-expiry and any CVV is the standard success card.
+Open the `short_url` of a row printed as **`payable`** — never the `settled`
+one. Pay on the mock page with a card from Razorpay's own test-card list, which
+the checkout page surfaces. Take the number from there rather than from memory:
+a declined card mid-beat is expensive here in a way it is nowhere else, and the
+link is spent either way.
 
 Two things then happen, and only one of them moves the ledger:
 
@@ -245,3 +298,8 @@ offline"**.
 - [ ] `docs/ROADMAP.md` — #21 and #15 move to done; P1 #5 closes with them.
 - [ ] `docs/BUILD-LOG.md` — the round trip is Phase 4's outstanding gate
       evidence.
+- [ ] **Last, after every other doc edit:** re-check the entry count quoted at
+      the end of `docs/SUBMISSION.md` field 5 against
+      `grep -c "^### ISS-" docs/ISSUES.md` minus one (ISS-012 carries a second
+      header for its Phase 4 resolution). The live run will add at least one
+      entry, and that sentence is in the graded field.
