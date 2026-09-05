@@ -209,11 +209,17 @@ better at 56 days, which is exactly why it is not the number in the table above.
 into the ledger as ordinary append-only outcome rows.
 
 **Precisely how much:** only payment links, and only funded ones. A 112-tick run
-at `--live-budget 3` executes 52 payment links and 337 other actions, of which
+at `--live-budget 3` executes 61 payment links and 153 other actions, of which
 **3 rows carry `executor: LIVE`**. Reminders and phone follow-ups have no live
 counterpart in any mode — Recoup sends no email, no SMS and places no calls — so
-`LIVE` is a property of the individual action, and the audit log answers "which
-rows were real?" exactly.
+`LIVE` is a property of the individual action rather than of the run.
+
+One caveat, stated because the audit log is the thing this project asks to be
+trusted. **A rehearsal stamps that same `LIVE` label.** The fake client stands in
+for the real one and returns a deterministic `plink_…` id, so the executor
+genuinely cannot tell them apart. A rehearsal log is therefore not evidence that
+a Razorpay object exists — only a `--confirm` run's is, and those ids are the
+ones checkable in the Razorpay dashboard.
 
 **Simulated, and why:** everything else, because test mode closes the doors.
 Payment Links cap at 30 per business; UPI Payment Links are unsupported in test

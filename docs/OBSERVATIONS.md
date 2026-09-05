@@ -402,3 +402,36 @@ modelling choice that has to be fixed before the results are seen, and this one
 was.
 
 ---
+
+## OBS-012 · A rehearsal audit log is indistinguishable from a confirmed one
+
+**Measured.** `recoup run --executor live --live-budget 3` without `--confirm`
+runs against `FakePaymentLinkClient` and produces three audit rows carrying
+`executor: LIVE` with `external_ref` values like `plink_cd03eff60147e0`. A
+`--confirm` run produces rows of exactly the same shape. Nothing in
+`audit.jsonl`, `summary.json` or `final.json` records which of the two happened.
+
+**Why it happens, and why it is not simply a bug.** `LiveRazorpayExecutor`
+stamps `ExecutorKind.LIVE` when `client.create()` returns a usable `plink_` id.
+That is the correct rule — ISS-041 is precisely the argument that `LIVE` must
+mean "a Razorpay object exists for this row" rather than being a per-run or
+per-executor property. The fake client satisfies the `PaymentLinkClient`
+protocol faithfully, which is what makes the whole live path rehearsable for
+free; the executor cannot tell the two apart without breaking the seam that
+makes it testable.
+
+**Why it matters.** The audit log is the artifact this project asks to be
+trusted, and the README invites a reader to run the rehearsal because it costs
+nothing. That reader ends up holding a log which asserts three real Razorpay
+objects that do not exist. The claim "the audit log answers which rows were real,
+exactly" is true of a confirmed run and false of a rehearsal, and the README now
+says so rather than relying on the operator remembering which command they ran.
+
+**What would change it.** Recording the confirm flag in `summary.json` as a
+`live_mode: rehearsal | confirmed` field. That is a one-line addition and does
+not touch `ExecutorKind`, so it keeps ISS-041 intact — deliberately deferred
+here rather than done, because it rewrites the summary artifact of every
+committed run and the canonical bytes are frozen for submission. It is the first
+thing to do after the live round trip is recorded.
+
+---

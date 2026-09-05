@@ -37,7 +37,7 @@ alongside `main`.
 | 15 | Five-minute video | 7 | 🟡 narration script drafted in `docs/VIDEO-SCRIPT.md`; recording is the user's |
 | 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ⬜ |
 | 22 | **Rule on `HARDSHIP_CLAIMED`** (OBS-002): either score it as a third false-intervention subtype or write down the decision that hardship contact is legitimate. | 6 | ⬜ assigned at the Phase 3 close |
-| 19 | Create the public GitHub repository and push | user decision | ⬜ local history and tag are ready |
+| 19 | Create the public GitHub repository and push | user decision | ✅ done — `main` and `v0.1-submittable` on github.com/KartikB3/recoup-ai |
 | 21 | Run the live round trip once and screen-record it: 3 links, tunnel, mock-page payment, webhook, `PAID` | 4 | user decision | ⬜ everything it needs is built; procedure in the README. Use a short `--ticks` (ISS-039) |
 
 The four-arm comparison is now a standing contract. `AlwaysWait` preserves the
