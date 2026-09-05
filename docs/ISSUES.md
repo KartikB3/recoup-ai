@@ -899,7 +899,7 @@ point now agree.
 
 ---
 
-### ISS-044 · 🟡 The engine's own terminal path had unit tests and no firing
+### ISS-046 · 🟡 The engine's own terminal path had unit tests and no firing
 
 **Phase:** 6
 **What happened:** OBS-004 measured that both policy arms made **zero** `STOP`
@@ -927,7 +927,7 @@ to cover only that.
 
 ---
 
-### ISS-045 · 🟡 An approved aggregate decision changed nothing until Phase 6
+### ISS-047 · 🟡 An approved aggregate decision changed nothing until Phase 6
 
 **Phase:** 6
 **What happened:** Phase 3 produced a real batch insight, the policy engine
@@ -962,6 +962,78 @@ saying out loud: most of the agent column's contact reduction is now the
 aggregate decision, not the per-record ladder.
 **Status:** RESOLVED -- applied, rendered in `rule_firings`, and covered by two
 tests including one asserting a hallucinated group never binds.
+
+---
+
+### ISS-048 · 🟡 The hardship flag was too coarse to score, and the model showed why
+
+**Phase:** 6
+**What happened:** `HARDSHIP_CLAIMED` (12 records) was the one held-out flag the
+false-intervention metric ignored. OBS-002 recorded the gap and left two ways to
+close it: score it as a third false-intervention subtype, or write down a
+decision that hardship contact is legitimate. Choosing required looking at what
+the reasoner actually did with those twelve records -- and the evidence ruled the
+first option out.
+**Why it matters:** The README says 40 of 126 records carry a held-out flag and
+then reports false interventions in two subtypes. 18 + 10 = 28. A judge who
+counts finds twelve records unaccounted for. The flag is not decorative either:
+`adjudicator.PROFILES[Archetype.DISTRESSED]` carries `complaint=0.090`, 4.5x its
+own `dispute_raised`, so the simulation models pressing these payers as actively
+counterproductive. Scoring one modelled harm and silently ignoring another is
+the kind of gap that costs more than the metric was worth.
+**What we tried:** Scoring it as a third subtype, on paper first. It fails
+immediately on the data. At first review the model escalates 7 of the 12 to a
+human and proposes contact on 5; the policy engine then vetoes 2 of those 5 under
+`payer-contact-spacing`, leaving **3 records contacted, 12 contacts in total**,
+against the deterministic ladder's 16 across 6 and the naive chaser's 49 across
+all 12. Read the three it does contact and a subtype would be scoring the wrong
+thing:
+
+| Record | Model's first review | What the payer had said |
+|---|---|---|
+| `ASH-2026-0096` | `PAYMENT_LINK` | Asked to pay online -- adding a beneficiary takes "a working week and two approvals" -- and said they would rather close it than keep it open. All three prior invoices paid in full, late. |
+| `ASH-2026-0090` | `PAYMENT_LINK` | Requested an online option; their per-beneficiary transfer limit is below the invoice value. |
+| `ASH-2026-0088` | `SOFT_REMINDER` | Accounts officer committed on a call that the transfer is already queued in their banking portal. |
+
+Contrast `ASH-2026-0094`, which carries *identical* payer notes to `0096` --
+same cancelled order, same fortnightly part-payments -- and is escalated instead,
+because that payer also wrote that reminders do not address the point they
+raised and asked that further contact come from *"someone authorised to settle
+it"*. Or `ASH-2026-0093`, which explicitly asks for a payment link and is still
+escalated, because the same payer made an unprompted part-payment offer: the
+model's own stated ground is that this is *"a commercial negotiation about how
+and in what instalments"*, which the agent has no authority to answer.
+
+So a `false_interventions_hardship` column would have scored sending a payment
+link to a distressed payer who asked for one as **harm**, and rewarded the agent
+for withholding the thing that lets them pay. The metric would have punished the
+correct behaviour.
+**Design consequence:** `HARDSHIP_CLAIMED` is **reported, not scored**. It stays
+out of the false-intervention total, and the decision that governs it is written
+down rather than encoded:
+
+> Contacting a payer in hardship is legitimate when the only thing between them
+> and payment is operational -- a channel they cannot use, a beneficiary they
+> cannot add, a link they asked for. It is harm when a commercial question is
+> open that the agent has no authority to answer: a part-payment offer, a
+> settlement request, or an explicit ask for someone senior. The first is
+> service. The second is pressure.
+
+The rule is deliberately not a policy rule. It cannot be evaluated from the
+snapshot -- distinguishing "cannot pay this way" from "will not pay until
+someone decides" is exactly the prose judgement the reasoner exists for, and
+encoding a keyword proxy for it in `PolicyEngine` would be a worse version of
+the thing that already works. What the policy engine does contribute is the
+frequency and spacing caps, which is what actually stopped `0089` and `0098`.
+**The honest limit:** three contacted records is a coherent pattern, not a
+measured rate. Every one of the three fits the rule and every one of the nine
+escalations is consistent with it, but twelve records cannot establish an effect
+size and this entry does not claim one. What it claims is that the distinction
+is real, that the flag cannot express it, and that a subtype scored against the
+flag would have been actively misleading.
+**Status:** RESOLVED — decided and documented. OBS-002 closes; the README now
+states why 28 of the 40 flagged records are scored and twelve are reported
+separately.
 
 ---
 

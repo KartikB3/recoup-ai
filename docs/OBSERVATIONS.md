@@ -48,8 +48,8 @@ rather than a weak one — the bar is now precisely measured (56.72% value at 13
 contacts, 23 false interventions), so any model gain is legible instead of
 confounded. But it means Phase 3 cannot justify itself on per-record recovery.
 It has to earn its place on what the ladder structurally *cannot* do, and that
-is **one thing, not two**: reading the free text (see OBS-002, and ISS-036 for
-the result).
+is **one thing, not two**: reading the free text (ISS-036 and ISS-048 are the
+two results).
 
 The batch-level cluster insight (spec §7b, ROADMAP P0 #11) was assumed to be the
 second, and it is not. The deterministic fallback proposes the **identical**
@@ -88,70 +88,6 @@ measurement of it.
 
 ---
 
-## OBS-002 · `HARDSHIP_CLAIMED` is modelled as harm and scored by nothing
-
-**Measured.** The book carries three held-out flags: `DISPUTED` (18 records),
-`HARDSHIP_CLAIMED` (12) and `ALREADY_PAID_UNRECONCILED` (10). The
-false-intervention metric counts contacts against the first and third. It does
-not count the second.
-
-The simulation nonetheless models pressing these payers as actively harmful.
-`adjudicator.PROFILES[Archetype.DISTRESSED]` carries `complaint=0.090` — 4.5×
-its own `dispute_raised=0.020` — and the module comment is explicit: *"DISTRESSED
-pays LESS when pressed and complains more. Pressure is counterproductive; time
-and a human do better."*
-
-Contacts landing on hardship records:
-
-| Arm | Contacts | Distinct records |
-|---|---:|---:|
-| Baseline | 49 | 12 / 12 |
-| Baseline + policy | 16 | 6 / 12 |
-| Agent | 16 | 6 / 12 |
-
-**Why it matters.** Two things, pulling in opposite directions.
-
-It is an **unclaimed win**: policy already cuts hardship contact by 67% and
-halves the number of distressed payers touched at all. That result is sitting
-in the logs unreported.
-
-It is also an **unmeasured harm**: a third of the held-out harm vocabulary does
-not appear in the metric table, so "23 false interventions" understates total
-harm on a definition the project itself chose. A judge who reads
-`adjudicator.py` and then the metric table can ask why one modelled harm is
-scored and another is not, and the honest answer today is that nobody decided.
-
-Note also that the figure is **identical** between baseline + policy and agent
-(16 across 6), which is OBS-001 showing up again in a third dimension.
-
-**What would change it.** Either scoring it — a `harm-weighted contacts` row,
-or a third false-intervention subtype — or an explicit written decision that
-hardship contact is legitimate because the payer still owes the money and the
-merchant is entitled to ask. Both are defensible. Silence is not, because the
-flag exists and the behaviour model uses it.
-
-**Phase 3 evidence.** All 12 hardship records were seeded and scored. The ladder
-contacts 12 of 12; the model contacts 5, so 58% suppression — much the weakest
-of the three categories, against 100% for both scored ones. The five are reasoned
-rather than missed. On `ASH-2026-0089` the model's stated ground is that *"the
-payer has explicitly asked for a card link, so sending one addresses the named
-obstacle rather than adding pressure."*
-
-**Owner: Phase 6, ROADMAP P0 item 22.** Assigned at the Phase 3 close so it cannot become the thing nobody did.
-
-That sharpens the open question instead of answering it. The model is drawing a
-distinction the flag cannot express — hardship that needs breathing room versus
-hardship where the payer has named the mechanism they want — and the project
-still has not decided which of those counts as harm. Deciding it is now a
-prerequisite for scoring the category, not merely an option.
-
-Hardship is also the strongest Phase 3 case in the book: it is signalled in
-prose (`corpus/payer_notes.yaml`, `corpus/email_replies.yaml` carry `HARDSHIP`
-signals) and nowhere in the structured fields, so it is exactly the thing a
-snapshot-reading ladder cannot catch and a text-reading model can.
-
----
-
 ## OBS-004 · `high-value-escalation` cannot fire, because balances decay faster than the ladder exhausts
 
 **Measured.** The rule converts a `STOP` into `ESCALATE_HUMAN` when
@@ -168,7 +104,7 @@ construction, one that attracts enough partial payment to fall under the
 threshold before automation gives up on it.
 
 **Why it matters.** This is the one policy rule with no end-to-end firing
-anywhere, and ISS-044 shows a longer horizon does not fix it. It is guarded by a
+anywhere, and ISS-046 shows a longer horizon does not fix it. It is guarded by a
 regression test (ISS-030, after the ₹50 lakh digit-grouping bug) and by unit
 tests, and that is all the evidence there is. Anything the submission says about
 it must be phrased as "tested", never "demonstrated".

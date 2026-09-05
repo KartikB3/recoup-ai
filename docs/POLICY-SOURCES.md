@@ -181,7 +181,7 @@ the engine refused, and `applied_to_ledger` reports what the engine accepted
 rather than what the model asked for. Once armed, the decision reaches
 individual records through rule 3 above, `batch-cluster-suppression`, so every
 suppressed contact carries a rule id and a reason in the audit log instead of
-vanishing (ISS-045).
+vanishing (ISS-047).
 
 **Why this order.** Rules 1–2 are about the record itself and produce the most
 explanatory reason a reader could be given, so they run first — for a disputed

@@ -4,7 +4,7 @@ Razorpay Buildathon, Track 03. Solo, ~7 days. Read `docs/IMPLEMENTATION-PLAN.md`
 
 ## Start here (cold session)
 
-**Phases 0–3 and Phase 5 are complete and their gates are met.** The complete no-LLM floor
+**Phases 0–3, Phase 5 and the Phase 6 decision work are complete and their gates are met.** The complete no-LLM floor
 is tagged **`v0.1-submittable`**. **Phase 4 is built and its offline half is
 verified; one live round trip remains, and it is the user's to run. Phase 6 is
 next.** The Phase 5 dashboard is fully offline: five-column summary, named-payer
@@ -14,7 +14,8 @@ Read in this order:
 
 1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, then Phase 6.
 2. `docs/BUILD-LOG.md` — the Phase 5 entry, then the Phase 4 entry.
-3. `docs/ISSUES.md` — **ISS-044–045** are the Phase 5 record,
+3. `docs/ISSUES.md` — **ISS-046–048** are the Phase 6 record,
+   **ISS-044–045** the Phase 5 one,
    **ISS-039–042** are the Phase 4 record and **ISS-034–038**
    the Phase 3 one; together they are the best raw material in the file for the
    graded "Build Challenges" answer. ISS-017, ISS-024, ISS-025, ISS-027 and
@@ -22,7 +23,7 @@ Read in this order:
    (ISS-012 was discharged in Phase 4).
 4. `docs/OBSERVATIONS.md` — **OBS-001 and OBS-008 govern what may be claimed
    about the model**, **OBS-009 and OBS-010 what may be claimed about the live
-   slice**; OBS-002 is an open decision owned by Phase 6 (ROADMAP P0 #22); OBS-005 is the
+   slice**; OBS-012 governs what a rehearsal log may be said to prove; OBS-005 is the
    measured cost model.
 5. This file, below, for the invariants.
 

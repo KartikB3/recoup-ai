@@ -31,12 +31,12 @@ alongside `main`.
 
 | # | Item | Phase | State |
 |---|---|---|---|
-| 11 | Batch-level insight (§7b) — the cluster event. **Built in Phase 3; applied in Phase 6.** | 3 → 6 | ✅ done — binds through `batch-cluster-suppression`, 54 logged suppressions (ISS-045) |
-| 23 | Exercise the terminal path end to end (`STOP` → `EXHAUSTED` → write-off) so the bar's "stopping rules" is demonstrated, not just tested | 6 | ✅ done — `runs/seed42-t224/`, ISS-044, OBS-011 |
-| 14 | Seven submission-form answers drafted | 6 | ⬜ |
+| 11 | Batch-level insight (§7b) — the cluster event. **Built in Phase 3; applied in Phase 6.** | 3 → 6 | ✅ done — binds through `batch-cluster-suppression`, 54 logged suppressions (ISS-047) |
+| 23 | Exercise the terminal path end to end (`STOP` → `EXHAUSTED` → write-off) so the bar's "stopping rules" is demonstrated, not just tested | 6 | ✅ done — `runs/seed42-t224/`, ISS-046, OBS-011 |
+| 14 | Submission-form answers drafted | 6 | ✅ done — `docs/SUBMISSION.md`; the form has five fields, two of them URLs |
 | 15 | Five-minute video | 7 | 🟡 narration script drafted in `docs/VIDEO-SCRIPT.md`; recording is the user's |
-| 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ⬜ |
-| 22 | **Rule on `HARDSHIP_CLAIMED`** (OBS-002): either score it as a third false-intervention subtype or write down the decision that hardship contact is legitimate. | 6 | ⬜ assigned at the Phase 3 close |
+| 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ✅ done — `docs/SEED-DISTRIBUTION.md`, *How the fatigue numbers were chosen* |
+| 22 | **Rule on `HARDSHIP_CLAIMED`** (OBS-002): either score it as a third false-intervention subtype or write down the decision that hardship contact is legitimate. | 6 | ✅ done — reported, not scored; decision and evidence in ISS-048. OBS-002 closed |
 | 19 | Create the public GitHub repository and push | user decision | ✅ done — `main` and `v0.1-submittable` on github.com/KartikB3/recoup-ai |
 | 21 | Run the live round trip once and screen-record it: 3 links, tunnel, mock-page payment, webhook, `PAID` | 4 | user decision | ⬜ everything it needs is built; procedure in the README. Use a short `--ticks` (ISS-039) |
 
@@ -56,14 +56,17 @@ it as a harm result with its recovery cost stated, never as a recovery beat
 deterministic-fallback output and `runs/seed42-tiered/` is the only place model
 output appears.
 
-**Item 22 is the P0 discovered in Phase 3, and it is a decision rather than a
-build.** The model suppresses only 58% of hardship contacts and is drawing a
-distinction the flag cannot express (OBS-002) — hardship that needs breathing
-room versus hardship where the payer has named the mechanism they want. **Owned
-by Phase 6**, alongside item 18, because both are calibration decisions the
-evaluation phase has to defend in prose rather than code. A judge who reads
-`adjudicator.py` will ask, and "nobody decided" is the one answer that costs
-marks.
+**Items 18 and 22 are closed, and both were decisions rather than builds.**
+Item 22 asked whether `HARDSHIP_CLAIMED` should become a third
+false-intervention subtype. It should not: the model contacts three of the
+twelve hardship records and all three are payers who asked to be able to pay, so
+the subtype would have scored sending a payment link to someone who requested
+one as harm. Hardship is **reported, not scored**, and the rule that governs it
+is written out in ISS-048. Item 18 writes up how `FATIGUE_ONSET` and
+`FATIGUE_COMPLAINT_STEP` were chosen, in `docs/SEED-DISTRIBUTION.md` — the
+sweep, the target, and the load-bearing fact that recovery barely moves across
+the whole range, so the calibration governs the plausibility of the harm rather
+than who wins.
 
 ### P1 — turns solid into winning
 
