@@ -428,10 +428,19 @@ exactly" is true of a confirmed run and false of a rehearsal, and the README now
 says so rather than relying on the operator remembering which command they ran.
 
 **What would change it.** Recording the confirm flag in `summary.json` as a
-`live_mode: rehearsal | confirmed` field. That is a one-line addition and does
-not touch `ExecutorKind`, so it keeps ISS-041 intact — deliberately deferred
-here rather than done, because it rewrites the summary artifact of every
-committed run and the canonical bytes are frozen for submission. It is the first
-thing to do after the live round trip is recorded.
+`live_mode: rehearsal | confirmed` field. It does not touch `ExecutorKind`, so
+ISS-041 stays intact.
+
+It is also smaller than it first appears, and an earlier draft of this entry
+deferred it on a rationale that was simply wrong — that it would rewrite the
+summary artifact of every committed run. It would not. `RunResult` gains one
+optional field which `summarise` emits only when it is set, so every committed
+simulated run keeps its bytes and the byte-identical reproduction check still
+passes untouched. No committed artifact changes at all, because no live run is
+committed. The real cost is one dataclass field, one line on the live path, one
+line in `summarise`, and a test.
+
+Worth doing before the video rather than after, because the live beat is
+precisely where a row stamped `LIVE` has to mean something.
 
 ---
