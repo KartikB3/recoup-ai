@@ -36,7 +36,7 @@ alongside `main`.
 | 14 | Submission-form answers drafted | 6 | ✅ done — `docs/SUBMISSION.md`; the form has five fields, two of them URLs |
 | 15 | Five-minute video | 7 | 🟡 narration script drafted in `docs/VIDEO-SCRIPT.md`; recording is the user's |
 | 18 | Write up the fatigue calibration (ISS-021) before a judge asks how those numbers were chosen | 6 | ✅ done — `docs/SEED-DISTRIBUTION.md`, *How the fatigue numbers were chosen* |
-| 22 | **Rule on `HARDSHIP_CLAIMED`** (OBS-002): either score it as a third false-intervention subtype or write down the decision that hardship contact is legitimate. | 6 | ✅ done — reported, not scored; decision and evidence in ISS-048. OBS-002 closed |
+| 22 | **Rule on `HARDSHIP_CLAIMED`**: either score it as a third false-intervention subtype or write down the decision that hardship contact is legitimate. | 6 | ✅ done — reported, not scored; decision and evidence in ISS-048. OBS-002 closed |
 | 19 | Create the public GitHub repository and push | user decision | ✅ done — `main` and `v0.1-submittable` on github.com/KartikB3/recoup-ai |
 | 21 | Run the live round trip once and screen-record it: 3 links, tunnel, mock-page payment, webhook, `PAID` | 4 | user decision | ⬜ everything it needs is built; procedure in the README. Use a short `--ticks` (ISS-039) |
 

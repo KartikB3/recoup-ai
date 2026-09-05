@@ -14,7 +14,8 @@ Read in this order:
 
 1. `docs/IMPLEMENTATION-PLAN.md` — §0 locked decisions, then Phase 6.
 2. `docs/BUILD-LOG.md` — the Phase 5 entry, then the Phase 4 entry.
-3. `docs/ISSUES.md` — **ISS-046–048** are the Phase 6 record,
+3. `docs/ISSUES.md` — **ISS-046–048** are the Phase 6 record (**ISS-048 carries
+   the hardship decision — read it before claiming anything about harm**),
    **ISS-044–045** the Phase 5 one,
    **ISS-039–042** are the Phase 4 record and **ISS-034–038**
    the Phase 3 one; together they are the best raw material in the file for the

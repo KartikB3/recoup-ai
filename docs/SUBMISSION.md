@@ -138,12 +138,14 @@ Twelve records carry a hidden hardship flag, and the simulation models pressing
 those payers as actively counterproductive. The obvious move was to score
 hardship contact as a third false-intervention subtype. Reading what the agent
 actually did with those twelve killed it. It escalates nine to a human and
-contacts three — and all three are payers who asked to be able to pay: one
-cannot add a beneficiary, one has a transfer limit below the invoice value, one
-confirmed the transfer is already queued. Two others explicitly requested a
-payment link and were still escalated, because those payers had also made a
-part-payment offer or asked for someone authorised to settle — a commercial
-question the agent has no authority to answer. A subtype scored against the flag
+contacts three. Two of those three had asked for a channel they could actually
+use — one cannot add a beneficiary inside a week, one has a per-beneficiary
+transfer limit below the invoice value — and the third had confirmed the
+transfer was already queued in their banking portal. Meanwhile two of the nine
+escalations had explicitly requested a payment link and were escalated anyway,
+because those payers had also made a part-payment offer or asked for someone
+authorised to settle — a commercial question the agent has no authority to
+answer. A subtype scored against the flag
 would have counted sending a payment link to someone who requested one as harm.
 Hardship is now reported rather than scored, and the distinction is written down
 as a rule the reasoner is held to: contact is service when the obstacle is
