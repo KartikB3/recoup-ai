@@ -346,6 +346,7 @@ cached as if they came from the model.
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | What is left, and what Recoup could become |
 | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) | Drafted answers to the buildathon form |
 | `docs/SEED-DISTRIBUTION.md` | The generator's distribution, and how the fatigue constants were calibrated |
+| [`docs/RUNBOOK.md`](docs/RUNBOOK.md) | Step-by-step for the live round trip and the demo recording |
 
 ## Out of scope, permanently
 
