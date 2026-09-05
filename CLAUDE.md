@@ -101,8 +101,9 @@ replacement for the deterministic agent column.
 it needs is built and rehearsed against a fake client; it needs a tunnel, a
 dashboard webhook and a browser click, so it is the user's to run. Until it has
 been run, **nothing may claim a real payment has been reconciled** — say "built
-and verified offline". The procedure is in the README under *Closing the live
-loop*.
+and verified offline". The step-by-step is `docs/RUNBOOK.md`: Part A is the
+round trip, Part B the shooting order for the video, Part C the doc
+updates that only become true afterwards.
 
 ## The rule that outranks everything
 
