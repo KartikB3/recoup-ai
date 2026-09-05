@@ -39,6 +39,7 @@ from recoup.runner.batch import (
     assert_same_decisions,
     run_batch,
     run_live_batch,
+    summarise,
     write_run,
 )
 
@@ -219,7 +220,9 @@ def _live_executor(
     )
 
 
-def _live_run(run_id: str, capacity: int) -> tuple[Any, FakePaymentLinkClient]:
+def _live_run(
+    run_id: str, capacity: int, live_mode: str = "rehearsal"
+) -> tuple[Any, FakePaymentLinkClient]:
     client = FakePaymentLinkClient()
     executors: list[LiveRazorpayExecutor] = []
 
@@ -244,6 +247,7 @@ def _live_run(run_id: str, capacity: int) -> tuple[Any, FakePaymentLinkClient]:
         executor_factory=build,
         policy_factory=lambda: PolicyEngine(MerchantPolicy(link_budget=None)),
         horizon=112,
+        live_mode=live_mode,
     )
     return (outcome, executors[-1]), client
 
@@ -574,3 +578,41 @@ def test_a_rehearsal_is_never_refused() -> None:
     outcome, client = _live_run_with("rehearse", 3, 112, require_payable=False)
     assert len(client.calls) == 3
     assert len(outcome.allocator.shortlist) == 3
+
+
+def test_the_run_artifact_says_whether_the_links_are_real() -> None:
+    """OBS-012: the audit rows cannot, so the summary has to.
+
+    `FakePaymentLinkClient` returns a deterministic `plink_...` id and the
+    executor stamps `ExecutorKind.LIVE` either way, so a rehearsal log is
+    byte-comparable to a confirmed one. Whether those ids exist at Razorpay is
+    known only at the moment the client is chosen, and this is where it is
+    written down.
+    """
+    (rehearsal, _), _ = _live_run("marker-rehearsal", 3)
+    (confirmed, _), _ = _live_run("marker-confirmed", 3, live_mode="confirmed")
+
+    assert summarise(rehearsal.live)["live_mode"] == "rehearsal"
+    assert summarise(confirmed.live)["live_mode"] == "confirmed"
+
+    # The dry pass never touches a client, so it is neither.
+    assert "live_mode" not in summarise(rehearsal.dry)
+
+
+def test_an_ordinary_run_summary_is_unchanged_by_the_marker() -> None:
+    """The committed canonical runs must keep their bytes.
+
+    `runs/seed42/` and `runs/seed42-tiered/` are reproduced byte for byte by
+    the two documented commands. A field that appeared on every summary would
+    break that claim silently, so the marker is absent unless a live executor
+    set it.
+    """
+    result = run_batch(
+        generate_batch(42).records,
+        DeterministicFallback(),
+        seed=42,
+        run_id="ordinary",
+        horizon=8,
+    )
+    assert result.live_mode is None
+    assert "live_mode" not in summarise(result)

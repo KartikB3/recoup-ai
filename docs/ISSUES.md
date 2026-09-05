@@ -1037,6 +1037,50 @@ separately.
 
 ---
 
+### ISS-049 · 🟡 A free rehearsal produced a log asserting three Razorpay objects that do not exist
+
+**Phase:** 6 (pre-recording)
+**What happened:** `LiveRazorpayExecutor` stamps `ExecutorKind.LIVE` whenever
+`client.create()` returns a usable `plink_` id, which is the rule ISS-041
+argues for: `LIVE` must mean "a Razorpay object exists for this row" and not
+"this run was configured a certain way". `FakePaymentLinkClient` satisfies the
+same protocol and returns a deterministic `plink_...` id, so a rehearsal —
+which the README actively invites a reader to run, because it costs nothing —
+wrote three rows indistinguishable in shape from a confirmed run's. Nothing in
+`audit.jsonl`, `summary.json` or `final.json` recorded which had happened.
+
+**Why it matters:** the audit log is the artifact this project asks to be
+trusted. A reader following the documented rehearsal ends up holding a log that
+asserts three real Razorpay objects, and there is no `plink_` id in it that
+resolves. It fails in the flattering direction, which is the same failure shape
+as ISS-039.
+
+**What we did not do:** make `ExecutorKind` per-executor or per-run. That is
+exactly the regression ISS-041 exists to prevent — reminders and phone calls
+have no live counterpart and would be mislabelled by a run-level flag. The seam
+that makes the fake client indistinguishable is the same seam that makes the
+whole live path rehearsable for free, and breaking it to fix the label would
+cost more than the label is worth.
+
+**Fix:** the run says what the row cannot. `RunResult` gains an optional
+`live_mode`, `run_live_batch` stamps `"confirmed"` or `"rehearsal"` on the live
+pass only, and `summarise` emits the field only when it is set — so every
+committed simulated run keeps its bytes and both documented reproduction
+commands still reproduce byte for byte. Two tests hold it: one that the two
+modes are distinguishable in the summary, one that an ordinary run's summary is
+unchanged.
+
+**Ordering, which is the part worth remembering:** the field is written at run
+time. Added after the confirmed round trip, the confirmed run would have been
+the single artifact in the repository without the marker, and regenerating it
+would have cost three more of the thirty capped links. A cheap fix has an
+expiry date when the artifact it marks is expensive to remake.
+
+**Status:** RESOLVED — 277 tests. OBS-012 is narrowed rather than closed: the
+audit rows themselves are still indistinguishable, by design.
+
+---
+
 ## Entry template
 
 ```markdown

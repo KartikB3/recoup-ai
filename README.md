@@ -230,7 +230,10 @@ trusted. **A rehearsal stamps that same `LIVE` label.** The fake client stands i
 for the real one and returns a deterministic `plink_…` id, so the executor
 genuinely cannot tell them apart. A rehearsal log is therefore not evidence that
 a Razorpay object exists — only a `--confirm` run's is, and those ids are the
-ones checkable in the Razorpay dashboard.
+ones checkable in the Razorpay dashboard. The run says which: `summary.json`
+carries `live_mode: rehearsal | confirmed`, written by the only component that
+knows. The rows still do not, deliberately, and that trade is argued in
+[`docs/ISSUES.md`](docs/ISSUES.md) ISS-049.
 
 **Simulated, and why:** everything else, because test mode closes the doors.
 Payment Links cap at 30 per business; UPI Payment Links are unsupported in test
@@ -313,7 +316,7 @@ Only successful validated model output is ever cached; errors, refusals,
 truncation and missing credentials fall back deterministically and are never
 cached as if they came from the model.
 
-275 tests, all offline. No network on any test path.
+277 tests, all offline. No network on any test path.
 
 ## Repository map
 

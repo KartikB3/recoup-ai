@@ -152,7 +152,7 @@ as a rule the reasoner is held to: contact is service when the obstacle is
 operational, pressure when a commercial question is open.
 
 All five are logged with their evidence and design consequence in
-docs/ISSUES.md, which carries 49 entries.
+docs/ISSUES.md, which carries 50 entries.
 ```
 
 ---

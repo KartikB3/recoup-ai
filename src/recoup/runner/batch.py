@@ -173,6 +173,13 @@ class RunResult:
     decisions: int = 0
     written_off: int = 0
     batch_insight: BatchInsightResult | None = None
+    #: Only a live-executor run sets this. `"confirmed"` means real Razorpay
+    #: objects were created for the `LIVE` rows in this log; `"rehearsal"` means
+    #: the fake client produced ids that look identical and exist nowhere. The
+    #: audit rows cannot tell those apart (OBS-012), so the run artifact has to.
+    #: `None` on every ordinary run, and omitted from the summary, so the
+    #: committed canonical runs keep their bytes.
+    live_mode: str | None = None
 
     @property
     def records(self) -> list[Invoice]:
@@ -592,6 +599,7 @@ def run_live_batch(
     horizon: int = DEFAULT_HORIZON,
     batch_reasoner: BatchReasoner | None = None,
     require_payable: bool = False,
+    live_mode: str = "rehearsal",
 ) -> LiveRunOutcome:
     """Run the arm twice: once to reveal demand, once for real. Phase 4.
 
@@ -659,6 +667,9 @@ def run_live_batch(
         batch_reasoner=batch_reasoner,
     )
     assert_same_decisions(dry, live)
+    # Stamped on the live pass only. The dry pass never touches a client at all,
+    # so calling it a rehearsal would overload the word.
+    live.live_mode = live_mode
     return LiveRunOutcome(dry=dry, live=live, allocator=allocator)
 
 
@@ -729,6 +740,8 @@ def summarise(result: RunResult) -> dict[str, Any]:
         "audit_rows": len(result.log),
         "states": dict(sorted(states.items())),
     }
+    if result.live_mode is not None:
+        summary["live_mode"] = result.live_mode
     if result.batch_insight is not None:
         summary["batch_insight"] = {
             "pattern_found": result.batch_insight.proposal.pattern_found,

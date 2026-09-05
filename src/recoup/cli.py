@@ -209,6 +209,11 @@ def _run_live_agent_arm(
             # Only a spending run refuses. A rehearsal is still worth running on
             # a long horizon -- it shows the allocation -- and costs nothing.
             require_payable=confirm,
+            # The audit rows of a rehearsal and a confirmed run are
+            # indistinguishable by construction (OBS-012), so the marker that
+            # says whether these `plink_` ids exist at Razorpay has to be
+            # written by the run itself, at the moment it knows.
+            live_mode="confirmed" if confirm else "rehearsal",
         )
     except NoPayableLink as exc:
         typer.secho(str(exc), fg=typer.colors.RED, err=True)

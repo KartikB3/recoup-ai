@@ -339,44 +339,34 @@ was.
 
 ---
 
-## OBS-012 · A rehearsal audit log is indistinguishable from a confirmed one
+## OBS-012 · The audit rows still cannot say whether a `LIVE` row is real
 
 **Measured.** `recoup run --executor live --live-budget 3` without `--confirm`
-runs against `FakePaymentLinkClient` and produces three audit rows carrying
-`executor: LIVE` with `external_ref` values like `plink_cd03eff60147e0`. A
-`--confirm` run produces rows of exactly the same shape. Nothing in
-`audit.jsonl`, `summary.json` or `final.json` records which of the two happened.
+runs against `FakePaymentLinkClient` and writes three audit rows carrying
+`executor: LIVE` with `external_ref` values like `plink_479b855d24e477`. A
+`--confirm` run writes rows of exactly the same shape. Compare the two logs row
+by row and nothing separates them.
 
 **Why it happens, and why it is not simply a bug.** `LiveRazorpayExecutor`
 stamps `ExecutorKind.LIVE` when `client.create()` returns a usable `plink_` id.
 That is the correct rule — ISS-041 is precisely the argument that `LIVE` must
 mean "a Razorpay object exists for this row" rather than being a per-run or
-per-executor property. The fake client satisfies the `PaymentLinkClient`
-protocol faithfully, which is what makes the whole live path rehearsable for
-free; the executor cannot tell the two apart without breaking the seam that
-makes it testable.
+per-executor property, because reminders and phone calls have no live
+counterpart and a run-level flag would mislabel them. The fake client satisfies
+the `PaymentLinkClient` protocol faithfully, which is what makes the whole live
+path rehearsable for free.
 
-**Why it matters.** The audit log is the artifact this project asks to be
-trusted, and the README invites a reader to run the rehearsal because it costs
-nothing. That reader ends up holding a log which asserts three real Razorpay
-objects that do not exist. The claim "the audit log answers which rows were real,
-exactly" is true of a confirmed run and false of a rehearsal, and the README now
-says so rather than relying on the operator remembering which command they ran.
+**What changed, and what did not.** `summary.json` now carries
+`live_mode: rehearsal | confirmed`, written at run time by the only component
+that knows which client was chosen (ISS-049). So the *run* answers the question.
+The *rows* still do not, and a row lifted out of its run — pasted into a slide,
+quoted in a doc, replayed on its own — carries no signal at all. That residue is
+deliberate: closing it means breaking the seam ISS-041 protects.
 
-**What would change it.** Recording the confirm flag in `summary.json` as a
-`live_mode: rehearsal | confirmed` field. It does not touch `ExecutorKind`, so
-ISS-041 stays intact.
-
-It is also smaller than it first appears, and an earlier draft of this entry
-deferred it on a rationale that was simply wrong — that it would rewrite the
-summary artifact of every committed run. It would not. `RunResult` gains one
-optional field which `summarise` emits only when it is set, so every committed
-simulated run keeps its bytes and the byte-identical reproduction check still
-passes untouched. No committed artifact changes at all, because no live run is
-committed. The real cost is one dataclass field, one line on the live path, one
-line in `summarise`, and a test.
-
-Worth doing before the video rather than after, because the live beat is
-precisely where a row stamped `LIVE` has to mean something.
+**What would change it.** Nothing that is worth its cost inside this build. A
+per-row provenance field would duplicate `live_mode` on every row of every run
+to serve a case that only arises when a row is quoted out of context. The
+discipline instead is that `plink_` ids are only checkable in the Razorpay
+dashboard, and only a `confirmed` run's resolve there.
 
 ---

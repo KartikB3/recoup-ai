@@ -44,7 +44,7 @@ Read in this order:
 
 The cache under `data/llm_cache/` is **77 real record proposals and one real
 batch insight**, bought for $2.09. Every entry is genuine model output.
-**274 tests, all offline. No Anthropic import on the empty-key execution path,
+**277 tests, all offline. No Anthropic import on the empty-key execution path,
 and no network on any test path.**
 
 Setup: `uv sync --extra dev`. Check: `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest`. Note `ruff format --check` — CI enforces it and the old check line here omitted it.
